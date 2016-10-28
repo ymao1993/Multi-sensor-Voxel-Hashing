@@ -19,33 +19,40 @@
     </section>
 
     <section class="main-content">
-      <h2>
+      <h1>
+<a id="high-performance-adaptive-approximate-nearest-neighbor-search-with-image-binary-hash-codes" class="anchor" href="#high-performance-adaptive-approximate-nearest-neighbor-search-with-image-binary-hash-codes" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>High Performance Adaptive Approximate Nearest Neighbor Search with Image Binary Hash Codes</h1>
+
+<h2>
 <a id="team" class="anchor" href="#team" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Team</h2>
 
-<p>Yu Mao (<a href="mailto:yumao@cmu.edu">yumao@cmu.edu</a>) | Ziqiang Feng (<a href="mailto:zf@andrew.cmu.edu">zf@andrew.cmu.edu</a>)</p>
+<p>Yu Mao (<a href="mailto:yumao@cmu.edu">yumao@cmu.edu</a>)</p>
+
+<p>Ziqiang Feng (<a href="mailto:zf@andrew.cmu.edu">zf@andrew.cmu.edu</a>)</p>
 
 <h2>
 <a id="summary" class="anchor" href="#summary" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Summary</h2>
 
-<p>We will develop a high performance framework for Image Retrieval via Adaptive Approximate Nearest Neighbor(ANN) search. The framework features optimized ANN search in Hamming space and algorithm auto-selection. The framework will be GPU-accelerated and also capable of scaling out to a cluster. </p>
+<p>We will develop a high performance framework for Adaptive Approximate Nearest Neighbor(ANN) search based on [3]. Our project features: 
+(1) GPU-accelerated and distributed ANN search in Hamming space; and
+(2) data-adaptive automatic algorithm selection and parameter configuration.</p>
 
-<p>If we have additional time, we will build an example CBIR system based on our framework by deploying a imaging hashing stage with the deep learning approach as proposed by [4].</p>
+<p>If time permits, we will also build an example context-based image retrieval system based on our framework and image binary codes extracted with deep-learned hash functions [4].</p>
 
 <h2>
 <a id="background--challenges" class="anchor" href="#background--challenges" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Background &amp; Challenges</h2>
 
-<p>For many computer vision problems, the most computationally expensive part is finding nearest neighbor matches in a high-dimensional space. A disappointing fact is that for high-dimensional space, there are no algorithms for nearest neighbor search more efficient than simple linear scan, which is too costly for applications dealing with a large amount of data. Therefore, many algorithms are developed to perform approximate nearest neighbor search where non-optimal neighbors are sometimes returned. There have been many algorithms proposed and often we want to ask the question: "What is the fastest ANN algorithm for my data and what are the optimal parameters to use". [3] proposed an algorithm for automatic ANN algorithm selection and configuration, along with an open library <a href="http://www.cs.ubc.ca/research/flann/">FLANN</a>.</p>
+<p>For many computer vision problems, the most computationally expensive part is finding nearest neighbor matches in a high-dimensional space. A disappointing fact is that for high-dimensional space, there are no algorithms for nearest neighbor search more efficient than simple linear scan, which is too costly for applications dealing with a large amount of data. Therefore, many algorithms are developed to perform <em>approximate</em> nearest neighbor search where non-optimal neighbors are sometimes returned. Despite many proposed algorithms, one often asked question is <em>"What is the fastest ANN algorithm for my data and what are the optimal parameters to use"</em>. The <a href="http://www.cs.ubc.ca/research/flann/">FLANN</a> library [3] is an attempt to answer this question by proposing a method for automatic ANN algorithm selection and parameter configuration based on the given dataset.</p>
 
-<p>Recent years, there has been growing interests in mapping image data onto compact binary codes for fast near neighbor search. Because in this way, fast image search can be carried out via binary pattern matching or Hamming distance measurement. However, it can still be too slow to use linear search in the case of large datasets. In the FLANN library, a sequential version of <strong>LSH</strong> and  <strong>Hierarchical Clustering</strong> is implemented. These are the state-of-art algorithms for fast binary feature matching. </p>
+<p>In recent years, there has been growing interests in mapping image data onto compact binary hash codes for fast nearest neighbor search. The state-of-the-art of image hash code is to <em>learn</em> "good" hash functions from the dataset [4]. With such hash codes, fast image search can be carried out by matching binary codes or calculating Hamming distance. Nonetheless, it can still be too slow to use linear search in the case of large datasets. So it is desirable to combine deep-learned binary hash codes with efficient approximate nearest neighbor search.</p>
 
-<p>In FLANN, a simple scalable solution is provided for general ANN search algorithms by simply dividing the data onto nodes, perform ANN search independently and sum the results from each node in the end. </p>
+<p>In the FLANN library, a sequential version of <strong>LSH</strong> and  <strong>Hierarchical Clustering</strong> is implemented as they are found to be the state-of-art algorithms for fast binary feature matching. A naive parallel implementation is also provided for the algorithms by simply dividing the data onto nodes, performing ANN search independently and merging the results from each node in the end. </p>
 
-<p>Because we are going to implement a library specifically for binary features matching, there are several aspects we will be looking at:</p>
+<p>As we are targeting ANN with binary codes running efficiently on modern hardware, we will be specifically looking into the following aspects:</p>
 
 <ul>
 <li><p>How to effectively <strong>scale up</strong> and <strong>scale out</strong> the candidate binary feature matching algorithms? In this project, we will optimize and parallelize <strong>LSH</strong> and <strong>Hierarchical Clustering</strong> on both CPU and GPU. We will also design specific strategies to scale them out on a cluster of nodes. </p></li>
-<li><p>Our library will only be focusing on ANN search within Hamming space. With this knowledge, how can we improve the algorithm auto-selection part in <a href="http://www.cs.ubc.ca/research/flann/">FLANN</a>.</p></li>
-<li><p>The algorithm auto-selection strategy proposed in [3] requires evaluating at least on one tenth of the dataset. How to effectively parallelize and scaling out the auto-selection algorithm on a cluster of nodes?</p></li>
+<li><p>Our library will only be focusing on ANN search within Hamming space of binary codes. With this knowledge, how can we improve the automatic algorithm selection and parameter configuration in <a href="http://www.cs.ubc.ca/research/flann/">FLANN</a>?</p></li>
+<li><p>The auto-selection strategy proposed in [3] requires evaluating at least on one tenth of the dataset. How to effectively parallelize and scaling out the auto-selection algorithm on a cluster of nodes?</p></li>
 </ul>
 
 <h2>
@@ -53,7 +60,7 @@
 
 <ul>
 <li>
-<strong>Data set</strong>: For optimization and parallelization on single machines we will be working on small dataset like CIFAR-10 and Caltech256. For scaling out the framework, we will be working on large dataset like ImageNet.</li>
+<strong>Data set</strong>: For optimization and parallelization on a single machine we will be working on small datasets like CIFAR-10 and Caltech256. For scaling out the framework, we will be working on large datasets like ImageNet.</li>
 <li>
 <strong>Machine</strong>: a cluster of GPU nodes</li>
 <li>
@@ -61,11 +68,11 @@
 </ul>
 
 <h2>
-<a id="goals--deliverables" class="anchor" href="#goals--deliverables" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Goals &amp; Deliverables</h2>
+<a id="goals--deliverable" class="anchor" href="#goals--deliverable" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Goals &amp; Deliverable</h2>
 
-<p>The goal of our project is to build a framework which beats the FLANN library in terms of performance with binary features. We will report the performance of our framework compared to FLANN library on the same dataset.</p>
+<p>The goal of our project is to build a framework which outperforms the FLANN library with binary image features. We will report the performance of our framework compared to FLANN library on the same dataset.</p>
 
-<p>If we have additional time, we will build an example CBIR system based on our framework by deploying an imaging hashing stage with the deep learning approach proposed by [4]. Then we can demonstrate the our CBIR system interactively.</p>
+<p>If we have additional time, we will build an example CBIR system based on our framework by deploying an imaging hashing stage with deep-learned hash functions as proposed by [4]. Then we can demonstrate the our CBIR system interactively.</p>
 
 <h2>
 <a id="schedule" class="anchor" href="#schedule" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Schedule</h2>
@@ -78,7 +85,7 @@
 <li><p>week 3~4: Implement and optimize <strong>LSH</strong> and <strong>Hierarchical Clustering</strong> on both CPUs and GPUs.</p></li>
 <li><p>week 5: Design and implement a better strategy for automatic algorithm selection specifically for binary features.</p></li>
 <li><p>week 6: Scale out LSH, Hierarchical Clustering and automatic algorithm selection onto a cluster.</p></li>
-<li><p>Optional: Build an example CBIR system based on our framework by deploying a imaging hashing stage with the deep learning approach proposed by [4]</p></li>
+<li><p>Optional: Build an example CBIR system based on our framework by deploying an imaging hashing stage with the deep learned hash functions as proposed by [4]</p></li>
 </ul>
 
 <h2>
