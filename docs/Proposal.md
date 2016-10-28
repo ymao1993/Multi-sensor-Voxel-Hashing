@@ -9,7 +9,9 @@ Ziqiang Feng (zf@andrew.cmu.edu)
 ## Summary
 
 We will develop a high performance framework for Adaptive Approximate Nearest Neighbor(ANN) search based on [3]. Our project features: 
+
 (1) GPU-accelerated and distributed ANN search in Hamming space; and
+
 (2) data-adaptive automatic algorithm selection and parameter configuration.
 
 If time permits, we will also build an example context-based image retrieval system based on our framework and image binary codes extracted with deep-learned hash functions [4].
@@ -57,7 +59,7 @@ A tentative schedule is provided below.
 
 + week 6: Scale out LSH, Hierarchical Clustering and automatic algorithm selection onto a cluster.
 
-+ Optional: Build an example CBIR system based on our framework by deploying an imaging hashing stage with the deep learned hash functions as proposed by [4]
++ Optional: Build an example CBIR system based on our framework by deploying an image hashing stage with the deep learned hash functions as proposed by [4]
 
 
 ## Reference
