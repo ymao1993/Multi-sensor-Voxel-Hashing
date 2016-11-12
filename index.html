@@ -2,7 +2,7 @@
 <html lang="en-us">
   <head>
     <meta charset="UTF-8">
-    <title>High Performance Image Retrieval Framework via Adaptive ANN Search by YuMao1993</title>
+    <title>Supporting Multi-User Concurrent Model Update in BundleFusion by YuMao1993</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
     <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
@@ -11,7 +11,7 @@
   </head>
   <body>
     <section class="page-header">
-      <h1 class="project-name">High Performance Image Retrieval Framework via Adaptive ANN Search</h1>
+      <h1 class="project-name">Supporting Multi-User Concurrent Model Update in BundleFusion</h1>
       <h2 class="project-tagline">15769 - Visual Computing Systems Final Project</h2>
       <a href="https://github.com/YuMao1993/15769_Final_Project" class="btn">View on GitHub</a>
       <a href="https://github.com/YuMao1993/15769_Final_Project/zipball/master" class="btn">Download .zip</a>
@@ -19,10 +19,7 @@
     </section>
 
     <section class="main-content">
-      <h1>
-<a id="high-performance-adaptive-approximate-nearest-neighbor-search-with-image-binary-hash-codes" class="anchor" href="#high-performance-adaptive-approximate-nearest-neighbor-search-with-image-binary-hash-codes" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>High Performance Adaptive Approximate Nearest Neighbor Search with Image Binary Hash Codes</h1>
-
-<h2>
+      <h2>
 <a id="team" class="anchor" href="#team" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Team</h2>
 
 <p>Yu Mao (<a href="mailto:yumao@cmu.edu">yumao@cmu.edu</a>)</p>
@@ -32,77 +29,58 @@
 <h2>
 <a id="summary" class="anchor" href="#summary" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Summary</h2>
 
-<p>We will develop a high performance framework for Adaptive Approximate Nearest Neighbor(ANN) search based on [3]. Our project features: </p>
+<p>We will improve the BundleFusion system [3] in the following two aspects:</p>
 
-<p>(1) GPU-accelerated and distributed ANN search in Hamming space; and</p>
+<ol>
+<li><p>Accelerating SIFT feature correspondence search with fast adaptive approximate nearest neighbor (ANN) search based on [2].</p></li>
+<li><p>Implementing functionality to support multiple users contributing to the 3D reconstruction.</p></li>
+</ol>
 
-<p>(2) data-adaptive automatic algorithm selection and parameter configuration.</p>
+<p>If time permits, we will further investigate global optimizations in the presence of multiple user input streams.</p>
 
-<p>If time permits, we will also build an example context-based image retrieval system based on our framework and image binary codes extracted with deep-learned hash functions [4].</p>
+<p>For purpose of learning, we will rewrite the two modules from scratch.</p>
 
 <h2>
 <a id="background--challenges" class="anchor" href="#background--challenges" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Background &amp; Challenges</h2>
 
-<p>For many computer vision problems, the most computationally expensive part is finding nearest neighbor matches in a high-dimensional space. A disappointing fact is that for high-dimensional space, there are no algorithms for nearest neighbor search more efficient than simple linear scan, which is too costly for applications dealing with a large amount of data. Therefore, many algorithms are developed to perform <em>approximate</em> nearest neighbor search where non-optimal neighbors are sometimes returned. Despite many proposed algorithms, one often asked question is <em>"What is the fastest ANN algorithm for my data and what are the optimal parameters to use"</em>. The <a href="http://www.cs.ubc.ca/research/flann/">FLANN</a> library [3] is an attempt to answer this question by proposing a method for automatic ANN algorithm selection and parameter configuration based on the given dataset.</p>
+<p>Real-time, high-quality, 3D scanning of large-scale scenes is key to mixed reality and robotic applications. However, scalability brings challenges of drift in pose estimation, introducing significant errors in the accumulated model. Approaches often require hours of offline processing to globally correct model errors. Recent online methods demonstrate compelling results, but suffer from: (1) needing minutes to perform online correction preventing true real-time use; (2) brittle frame-to-frame (or frame-to-model) pose estimation resulting in many tracking failures; or (3) supporting only unstructured point-based representations, which limit scan quality and applicability. We systematically address these issues with a novel, real-time, end-to-end reconstruction framework. At its core is a robust pose estimation strategy, optimizing per frame for a global set of camera poses by considering the complete history of RGB-D input with an efficient hierarchical approach. We remove the heavy reliance on temporal tracking, and continually localize to the globally optimized frames instead. We contribute a parallelizable optimization framework, which employs correspondences based on sparse features and dense geometric and photometric matching. Our approach estimates globally optimized (i.e., bundle adjusted poses) in real-time, supports robust tracking with recovery from gross tracking failures (i.e., relocalization), and re-estimates the 3D model in real-time to ensure global consistency; all within a single framework. We outperform state-of-the-art online systems with quality on par to offline methods, but with unprecedented speed and scan completeness. Our framework leads to as-simple-as-possible scanning, enabling ease of use and high-quality results.</p>
 
-<p>In recent years, there has been growing interests in mapping image data onto compact binary hash codes for fast nearest neighbor search. The state-of-the-art of image hash code is to <em>learn</em> "good" hash functions from the dataset [4]. With such hash codes, fast image search can be carried out by matching binary codes or calculating Hamming distance. Nonetheless, it can still be too slow to use linear search in the case of large datasets. So it is desirable to combine deep-learned binary hash codes with efficient approximate nearest neighbor search.</p>
+<p>Challenges:</p>
 
-<p>In the FLANN library, a sequential version of <strong>LSH</strong> and  <strong>Hierarchical Clustering</strong> is implemented as they are found to be the state-of-art algorithms for fast binary feature matching. A naive parallel implementation is also provided for the algorithms by simply dividing the data onto nodes, performing ANN search independently and merging the results from each node in the end. </p>
-
-<p>As we are targeting ANN with binary codes running efficiently on modern hardware, we will be specifically looking into the following aspects:</p>
-
-<ul>
-<li><p>How to effectively <strong>scale up</strong> and <strong>scale out</strong> the candidate binary feature matching algorithms? In this project, we will optimize and parallelize <strong>LSH</strong> and <strong>Hierarchical Clustering</strong> on both CPU and GPU. We will also design specific strategies to scale them out on a cluster of nodes. </p></li>
-<li><p>Our library will only be focusing on ANN search within Hamming space of binary codes. With this knowledge, how can we improve the automatic algorithm selection and parameter configuration in <a href="http://www.cs.ubc.ca/research/flann/">FLANN</a>?</p></li>
-<li><p>The auto-selection strategy proposed in [3] requires evaluating at least on one tenth of the dataset. How to effectively parallelize and scaling out the auto-selection algorithm on a cluster of nodes?</p></li>
-</ul>
+<ol>
+<li><p>SIFT features of a new frame need to be matched with all previously seen frames, even in the presence of multiple user input streams.</p></li>
+<li><p>Efficiently handling concurrent update to a global 3D model while reducing synchronization overhead.</p></li>
+<li><p>Accelerating relocalization if there are multiple users.</p></li>
+</ol>
 
 <h2>
 <a id="resources" class="anchor" href="#resources" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Resources</h2>
 
 <ul>
 <li>
-<strong>Data set</strong>: For optimization and parallelization on a single machine we will be working on small datasets like CIFAR-10 and Caltech256. For scaling out the framework, we will be working on large datasets like ImageNet.</li>
+<strong>Data set</strong>: RGB-D Scanning data from [3]</li>
 <li>
 <strong>Machine</strong>: a cluster of GPU nodes</li>
 <li>
-<strong>Code</strong>: We will be referencing <a href="http://www.cs.ubc.ca/research/flann/">FLANN</a> to gain a better understanding of [3]. We will probably reuse/integrate some FLANN code into our framework.</li>
+<strong>Code</strong>: We will be working based on BundleFusion's source code [3]. </li>
 </ul>
 
 <h2>
 <a id="goals--deliverable" class="anchor" href="#goals--deliverable" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Goals &amp; Deliverable</h2>
 
-<p>The goal of our project is to build a framework which outperforms the FLANN library with binary image features. We will report the performance of our framework compared to FLANN library on the same dataset.</p>
-
-<p>If we have additional time, we will build an example CBIR system based on our framework by deploying an imaging hashing stage with deep-learned hash functions as proposed by [4]. Then we can demonstrate the our CBIR system interactively.</p>
+<p>The goal of our project is to deliver an improved BundleFusion system that can handle multiple users 3D reconstruction in real time.</p>
 
 <h2>
-<a id="schedule" class="anchor" href="#schedule" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Schedule</h2>
-
-<p>A tentative schedule is provided below.</p>
-
-<ul>
-<li><p>week 1: Read [1][2][3].</p></li>
-<li><p>week 2: Set up FLANN and get familiar with the code.</p></li>
-<li><p>week 3~4: Implement and optimize <strong>LSH</strong> and <strong>Hierarchical Clustering</strong> on both CPUs and GPUs.</p></li>
-<li><p>week 5: Design and implement a better strategy for automatic algorithm selection specifically for binary features.</p></li>
-<li><p>week 6: Scale out LSH, Hierarchical Clustering and automatic algorithm selection onto a cluster.</p></li>
-<li><p>Optional: Build an example CBIR system based on our framework by deploying an image hashing stage with the deep learned hash functions as proposed by [4]</p></li>
-</ul>
-
-<h2>
-<a id="reference" class="anchor" href="#reference" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Reference</h2>
+<a id="references" class="anchor" href="#references" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>References</h2>
 
 <p><a href="http://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=6809191">[1] Muja, Marius, and David G. Lowe. "Scalable nearest neighbor algorithms for high dimensional data." IEEE Transactions on Pattern Analysis and Machine Intelligence 36.11 (2014): 2227-2240.</a></p>
 
-<p><a href="http://www.cs.ubc.ca/research/flann/uploads/FLANN/binary_matching_crv2012.pdf">[2] Muja, Marius, and David G. Lowe. "Fast matching of binary features." Computer and Robot Vision (CRV), 2012 Ninth Conference on. IEEE, 2012.</a></p>
+<p><a href="https://lear.inrialpes.fr/%7Edouze/enseignement/2014-2015/presentation_papers/muja_flann.pdf">[2] Muja, Marius, and David G. Lowe. "Fast Approximate Nearest Neighbors with Automatic Algorithm Configuration." VISAPP (1) 2.331-340 (2009): 2.</a></p>
 
-<p><a href="https://lear.inrialpes.fr/%7Edouze/enseignement/2014-2015/presentation_papers/muja_flann.pdf">[3] Muja, Marius, and David G. Lowe. "Fast Approximate Nearest Neighbors with Automatic Algorithm Configuration." VISAPP (1) 2.331-340 (2009): 2.</a></p>
-
-<p><a href="http://www.cv-foundation.org/openaccess/content_cvpr_workshops_2015/W03/html/Lin_Deep_Learning_of_2015_CVPR_paper.html">[4] Lin, Kevin, et al. "Deep learning of binary hash codes for fast image retrieval." Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition Workshops. 2015.</a></p>
+<p><a href="http://graphics.stanford.edu/projects/bundlefusion/">[3] Dai, Angela, Matthias Nießner, Michael Zollhöfer, Shahram Izadi, and Christian Theobalt. "BundleFusion: Real-time Globally Consistent 3D Reconstruction using On-the-fly Surface Re-integration." arXiv preprint arXiv:1604.01093 (2016).</a></p>
 
       <footer class="site-footer">
-        <span class="site-footer-owner"><a href="https://github.com/YuMao1993/15769_Final_Project">High Performance Image Retrieval Framework via Adaptive ANN Search</a> is maintained by <a href="https://github.com/YuMao1993">YuMao1993</a>.</span>
+        <span class="site-footer-owner"><a href="https://github.com/YuMao1993/15769_Final_Project">Supporting Multi-User Concurrent Model Update in BundleFusion</a> is maintained by <a href="https://github.com/YuMao1993">YuMao1993</a>.</span>
 
         <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
       </footer>
