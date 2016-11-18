@@ -370,25 +370,5 @@
     <Filter Include="DXHelper">
       <UniqueIdentifier>{46397a92-f0b7-4b0f-bbb0-a363517e6c46}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Config">
-      <UniqueIdentifier>{e1431a7a-bd53-455a-808f-c56ca466d22c}</UniqueIdentifier>
-    </Filter>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="zParametersManolisScan.txt">
-      <Filter>Config</Filter>
-    </Text>
-    <Text Include="zParametersTango.txt">
-      <Filter>Config</Filter>
-    </Text>
-    <Text Include="zParametersTrackingDefault.txt">
-      <Filter>Config</Filter>
-    </Text>
-    <Text Include="zParametersDefault.txt">
-      <Filter>Config</Filter>
-    </Text>
-    <Text Include="zParametersYuBinaryDump.txt">
-      <Filter>Config</Filter>
-    </Text>
   </ItemGroup>
 </Project>

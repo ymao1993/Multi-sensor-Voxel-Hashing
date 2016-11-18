@@ -305,13 +305,6 @@
       <FileType>Document</FileType>
     </None>
   </ItemGroup>
-  <ItemGroup>
-    <Text Include="zParametersDefault.txt" />
-    <Text Include="zParametersManolisScan.txt" />
-    <Text Include="zParametersTango.txt" />
-    <Text Include="zParametersTrackingDefault.txt" />
-    <Text Include="zParametersYuBinaryDump.txt" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 7.5.targets" />

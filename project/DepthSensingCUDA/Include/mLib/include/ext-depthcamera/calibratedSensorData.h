@@ -60,10 +60,7 @@ inline BinaryDataStream<BinaryDataBuffer, BinaryDataCompressor>& operator>>(Bina
 	return s;
 }
 
-/**
- * Calibrated Sensor Data
- * Calibrated Sensor Data stores the color, depth and intrinsic and R|t matrix (with respect to the first frame) of all frames.
- */
+
 class CalibratedSensorData {
 public:
 	CalibratedSensorData() {
@@ -102,22 +99,20 @@ public:
 		return m_DepthImages[frame][ux + uy*m_DepthImageWidth];
 	}
 
-	/**
-	 * getWordPos
-	 * the term WordPos is not mis-used. It is meant to compute the camera space position corresponding
-	 * to pixel at (ux,uy) of the frame.
-	 */
 	vec3f getWorldPos(unsigned int ux, unsigned int uy, unsigned int frame) const {
 		const float depth = getDepth(ux, uy, frame);
 		vec4f world = m_CalibrationDepth.m_IntrinsicInverse*vec4f((float)ux*depth, (float)uy*depth, depth, 0.0f);
 		return world.getPoint3d();
+
+		//const float fx = m_CalibrationDepth.m_Intrinsic(0,0);
+		//const float fy = m_CalibrationDepth.m_Intrinsic(1,1);
+		//const float mx = m_CalibrationDepth.m_Intrinsic(0,2);
+		//const float my = m_CalibrationDepth.m_Intrinsic(1,2);
+		//float x = ((float)ux-mx) / fx;
+		//float y = (my-(float)uy) / fy;
+		//return vec3f(depth*x, depth*y, depth);
 	}
 
-	/**
-	 * savePointCloud
-	 * Merge the camera space point clouds of all frames and store into a single file.
-	 * (only for debugging purpose)
-	 */
 	void savePointCloud(const std::string& filename, unsigned int frameFrom, unsigned int frameTo = -1) const {
 		PointCloudf pc;
 
