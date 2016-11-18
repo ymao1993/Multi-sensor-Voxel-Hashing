@@ -1,4 +1,4 @@
-# Notes on Voxel Hashing Source Code
+# Notes
 
 Yu Mao (yumao@cmu.edu)
 
@@ -13,7 +13,7 @@ The second stage is for performing volumetrix integration is implemented with Tr
 The contribution of the paper is mainly about implementing a efficient hashing strategy to accelerate the second stage.
 
 
-### Build the Project
+### Build
 
 To build the project, I am using the following SDKs and softwares. It is important to note that the version of Visual Studio matters if you don't want to change any configurations of the VS project.
 
@@ -22,13 +22,25 @@ To build the project, I am using the following SDKs and softwares. It is importa
 + NVIDIA CUDA 7.5
 + Visual Studio 2013 Professional
 
-The project **DepthSensing** is accelerated with DirectX, while **DepthSensingCUDA** is accelerated with CUDA. For the purpose of this course, We will dig into **DepthSensingCUDA**.
+The project **DepthSensing** is accelerated with DirectX, while **DepthSensingCUDA** is accelerated with CUDA. For the purpose of this course, We will work based on **DepthSensingCUDA**.
 
-### CUDA Documentation
+### Configuration
+
+The executable takes two configuration file as its input argument. If it is not specified, it will be using _zParametersDefault.txt_ and _zParametersTrackingDefault.txt_ by default. As the names suggest, the first file specifies the global applicatoin variable values and the second file is specificlly for the tracking part.
+
+The most important configuration is the sensor. The project supports a range of RGBD sensors including: Kinect(Kinect v1), Kinect One(Kinect for Xbox One, or Kinext v2), Structure Sensor, Realsense, etc. To build the project, we need to :
+
++ Enable the corresponding macros in GlobalAppState.h;
+
++ Give the correct value to `s_sensorIdx` in the first input configuration file.
+
+A good practice when working on the project is to creat a bunch of scripts like runxxx.bat to specify what configuration files to use. And of course, to correctly run the program, the corrresponding macros should be enabled or disabled.
+
+### Resources
+
+#### CUDA
 
 [CUDA C Programming Guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html)
 
 [CUDA C Best Practice Guide](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html)
-
-### Project Structure
 
