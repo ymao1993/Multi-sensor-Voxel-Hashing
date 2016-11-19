@@ -159,6 +159,13 @@ bool CALLBACK ModifyDeviceSettings( DXUTDeviceSettings* pDeviceSettings, void* p
 //--------------------------------------------------------------------------------------
 // Handle updates to the scene
 //--------------------------------------------------------------------------------------
+/**
+ * This function is called before a frame is rendered. It is used to process the world state. 
+ * However, its update frequency depends on the speed of the system. On faster systems, 
+ * it is called more often per second. This means that any state update code must be regulated by time. 
+ * Otherwise, it performs differently on a slower system than on a faster system. Note that the rendering 
+ * calls are not included.
+ */
 void CALLBACK OnFrameMove( double fTime, float fElapsedTime, void* pUserContext )
 {
 	g_Camera.FrameMove( fElapsedTime );
@@ -200,6 +207,7 @@ void RenderHelp()
 	g_pTxtHelper->DrawTextLine(L"  \t'8':\t Save recorded input data to sensor file (if enabled)");
 	g_pTxtHelper->DrawTextLine(L"  \t'<tab>':\t Switch to free-view mode");
 	g_pTxtHelper->DrawTextLine(L"  \t");
+	g_pTxtHelper->DrawTextLine(L"  \t'0':\t Visualize re-sampled raw depth data");
 	g_pTxtHelper->DrawTextLine(L"  \t'1':\t Visualize reconstruction (default)");
 	g_pTxtHelper->DrawTextLine(L"  \t'2':\t Visualize input depth");
 	g_pTxtHelper->DrawTextLine(L"  \t'3':\t Visualize input color");
@@ -217,6 +225,11 @@ void RenderHelp()
 //--------------------------------------------------------------------------------------
 // Handle messages to the application
 //--------------------------------------------------------------------------------------
+/**
+ * DXUT invokes this function when window messages are received. 
+ * The function allows the application to handle messages as it
+ * sees fit.
+ */
 LRESULT CALLBACK MsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, bool* pbNoFurtherProcessing,
 						 void* pUserContext )
 {
@@ -626,8 +639,15 @@ void CALLBACK OnD3D11ReleasingSwapChain( void* pUserContext )
 	g_DialogResourceManager.OnD3D11ReleasingSwapChain();
 }
 
+/**
+ * The entry point for the 3d reconstruction procedure
+ */
 void reconstruction()
 {
+	//
+	// 1. Perform ICP for tracking
+	//
+
 	//only if binary dump
 	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader) {
 		std::cout << "[ frame " << g_RGBDAdapter.getFrameNumber() << " ] " << " [Free SDFBlocks " << g_sceneRep->getHeapFreeCount() << " ] " << std::endl;
@@ -691,24 +711,10 @@ void reconstruction()
 				(GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader)
 				&& GlobalAppState::get().s_binaryDumpSensorUseTrajectory
 				&& !GlobalAppState::get().s_binaryDumpSensorUseTrajectoryOnlyInit) {
-							
 				//actually: nothing to do here; transform is already set: just don't do icp and use pre-recorded trajectory
-
-				//transformation = g_RGBDAdapter.getRigidTransform();
-				//if (transformation[0] == -std::numeric_limits<float>::infinity()) {
-				//	std::cout << "INVALID FRAME" << std::endl;
-				//	return;					
-				//}
 			} else {
 				mat4f lastTransform = g_sceneRep->getLastRigidTransform();
 				mat4f deltaTransformEstimate = mat4f::identity();
-				//if we have a pre-recorded trajectory; use it as an init (if specificed to do so)
-				if ((GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader)
-					&& GlobalAppState::get().s_binaryDumpSensorUseTrajectory
-					&& GlobalAppState::get().s_binaryDumpSensorUseTrajectoryOnlyInit) {
-					//deltaTransformEstimate = lastTransform.getInverse() * transformation;	//simple case; not ideal in case of drift
-					//deltaTransformEstimate = g_RGBDAdapter.getRigidTransform(-1).getInverse() * transformation;
-				}
 
 				const bool useRGBDTracking = false;	//Depth vs RGBD
 				if (!useRGBDTracking) {
@@ -750,8 +756,9 @@ void reconstruction()
 		g_RGBDAdapter.recordTrajectory(transformation);
 	}
 
-	//std::cout << transformation << std::endl;
-	//std::cout << g_CudaDepthSensor.getRigidTransform() << std::endl << std::endl;
+	//
+	// 2. Perform Volumetric Integration with Voxel Hashing
+	//
 
 	if (transformation(0, 0) == -std::numeric_limits<float>::infinity()) {
 		std::cout << "!!! TRACKING LOST !!!" << std::endl;
@@ -759,6 +766,7 @@ void reconstruction()
 		return;
 	}
 
+	// perform host-to-GPU and GPU-to-host streaming
 	if (GlobalAppState::get().s_streamingEnabled) {
 		vec4f posWorld = transformation*GlobalAppState::getInstance().s_streamingPos; // trans laggs one frame *trans
 		vec3f p(posWorld.x, posWorld.y, posWorld.z);
@@ -769,6 +777,7 @@ void reconstruction()
 		//g_chunkGrid->debugCheckForDuplicates();
 	}
 
+	// perform integration
 	if (GlobalAppState::get().s_integrationEnabled) {
 		g_sceneRep->integrate(transformation, g_CudaDepthSensor.getDepthCameraData(), g_CudaDepthSensor.getDepthCameraParams(), g_chunkGrid->getBitMaskGPU());
 	} else {
@@ -791,7 +800,10 @@ void reconstruction()
 //--------------------------------------------------------------------------------------
 // Render the scene using the D3D11 device
 //--------------------------------------------------------------------------------------
-
+/**
+ * This function is called whenever a frame is redrawn. Within this function, effects are applied, 
+ * resources are associated, and the drawing for the scene is called.
+ */
 void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext, double fTime, float fElapsedTime, void* pUserContext )
 {
 	//g_historgram->computeHistrogram(g_sceneRep->getHashData(), g_sceneRep->getHashParams());

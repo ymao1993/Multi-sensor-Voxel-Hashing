@@ -38,9 +38,6 @@ A good practice when working on the project is to creat a bunch of scripts like 
 
 ### Resources
 
-#### CUDA
++ **CUDA**: The main funtionalities including ICP estimation and Voxel Hashing are implemented with CUDA. Some useful CUDA tutorials can be found at [CUDA C Programming Guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html) and [CUDA C Best Practice Guide](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html).
 
-[CUDA C Programming Guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html)
-
-[CUDA C Best Practice Guide](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html)
-
++ **DXUT**: DXUT is a "GLUT"-like framework for Direct3D 11.x Windows desktop applications, primarily for samples, demos, and prototypes. It is used in _DepthSensing.cpp_ to set up some application callbacks. A brief Introduction and sample code with DXUT can be found [here](https://code.msdn.microsoft.com/DXUT-Tutorial-Win32-Sample-fe15e440).
