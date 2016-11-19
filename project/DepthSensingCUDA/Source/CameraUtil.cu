@@ -139,7 +139,6 @@ __global__ void convertColorRawToFloatDevice(float4* d_output, BYTE* d_input, un
 
 	if(x >= width || y >= height) return;
 	
-	//uchar4 c = make_uchar4(d_input[4*(y*width+x)+2], d_input[4*(y*width+x)+1], d_input[4*(y*width+x)+0], d_input[4*(y*width+x)+3]);	//note the flip from BGRW to RGBW
 	uchar4 c = make_uchar4(d_input[4*(y*width+x)+0], d_input[4*(y*width+x)+1], d_input[4*(y*width+x)+2], d_input[4*(y*width+x)+3]);	
 	if (c.x == 0 && c.y == 0 && c.z == 0) {
 		d_output[y*width+x] = make_float4(MINF, MINF, MINF, MINF);
@@ -148,6 +147,11 @@ __global__ void convertColorRawToFloatDevice(float4* d_output, BYTE* d_input, un
 	}
 }
 
+/**
+ * convert the uchar representation of image to float4 representation.
+ * uchar representation: RGBA, each channel is encoded in 1 byte.
+ * float4 representation: RGBA, each channel is encoded in 1 float.
+ */
 extern "C" void convertColorRawToFloat4(float4* d_output, BYTE* d_input, unsigned int width, unsigned int height)
 {
 	const dim3 gridSize((width + T_PER_BLOCK - 1)/T_PER_BLOCK, (height + T_PER_BLOCK - 1)/T_PER_BLOCK);
@@ -1171,17 +1175,13 @@ __global__ void resampleFloat4MapDevice(float4* d_colorMapResampledFloat4, float
 	{
 		const float scaleWidth  = (float)(inputWidth-1) /(float)(outputWidth-1);
 		const float scaleHeight = (float)(inputHeight-1)/(float)(outputHeight-1);
-
-		const unsigned int xInput = (unsigned int)(x*scaleWidth +0.5f);
-		const unsigned int yInput = (unsigned int)(y*scaleHeight+0.5f);
-
-		if(xInput < inputWidth && yInput < inputHeight)
-		{
-			d_colorMapResampledFloat4[y*outputWidth+x] = bilinearInterpolationFloat4(x*scaleWidth, y*scaleHeight, d_colorMapFloat4, inputWidth, inputHeight);
-		}
+		d_colorMapResampledFloat4[y*outputWidth+x] = bilinearInterpolationFloat4(x*scaleWidth, y*scaleHeight, d_colorMapFloat4, inputWidth, inputHeight);
 	}
 }
 
+/**
+ * resample the float4 map to another size with bilinear interpolation
+ */
 extern "C" void resampleFloat4Map(float4* d_colorMapResampledFloat4, unsigned int outputWidth, unsigned int outputHeight, float4* d_colorMapFloat4, unsigned int inputWidth, unsigned int inputHeight)
 {
 	const dim3 gridSize((outputWidth + T_PER_BLOCK - 1)/T_PER_BLOCK, (outputHeight + T_PER_BLOCK - 1)/T_PER_BLOCK);

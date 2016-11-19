@@ -12,6 +12,12 @@
 
 #include <cstdlib>
 
+/**
+ * CUDARGBDAdapter
+ * A wrapper class implemented in CUDA to adapt the sensor to a user specific output size.
+ * It re-samples the original sensor output to a desired size and also adjusted the intrinsic matrix.
+ * Note that the depth and color map data provided by this adaptor lives on GPU.
+ */
 class CUDARGBDAdapter
 {
 	public:
@@ -119,15 +125,13 @@ class CUDARGBDAdapter
 		RGBDSensor*		m_RGBDSensor;
 		unsigned int	m_frameNumber;
 
+		// Camera intrinsics and extrinsics
 		mat4f m_depthIntrinsics;
 		mat4f m_depthIntrinsicsInv;
-
 		mat4f m_depthExtrinsics;
 		mat4f m_depthExtrinsicsInv;
-
 		mat4f m_colorIntrinsics;
 		mat4f m_colorIntrinsicsInv;
-
 		mat4f m_colorExtrinsics;
 		mat4f m_colorExtrinsicsInv;
 

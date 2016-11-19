@@ -101,7 +101,7 @@ HRESULT CUDARGBDAdapter::process(ID3D11DeviceContext* context)
 {
 	HRESULT hr = S_OK;
 
-	if (m_RGBDSensor->processDepth() != S_OK)	return S_FALSE; // Order is important!
+	if (m_RGBDSensor->processDepth() != S_OK)	return S_FALSE;
 	if (m_RGBDSensor->processColor() != S_OK)	return S_FALSE;
 
 	//Start Timing
