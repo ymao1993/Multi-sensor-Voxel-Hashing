@@ -25,9 +25,16 @@ Our objective is to enhance the system with capability to handle multiple input 
 
 ## Details
 
-### Running the starter code 
+### Running and Mofifying the starter code
 
-(screenshot)
+After setting up the project. We made three captures with Kinect and modified the sensor interface so we can directly load the Kinect's binary dump to run our project even without a Kinect at hand.
+
+Below are some screenshots:
+
+![nssh_1](screenshot0.jpg)
+
+![nssh_2](screenshot1.jpg)
+
 
 ### Code Structure
 
