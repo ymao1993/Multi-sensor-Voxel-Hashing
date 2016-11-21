@@ -25,7 +25,7 @@ Our objective is to enhance the system with capability to handle multiple input 
 
 ## Details
 
-### Running and Mofifying the starter code
+### Running and Modifying the starter code
 
 After setting up the project. We made three captures with Kinect and modified the sensor interface so we can directly load the Kinect's binary dump to run our project even without a Kinect at hand.
 
@@ -76,6 +76,26 @@ id      bucket name     total time      average time
 ```
 
 The profiling result shows that ICP tracking is our bottleneck in the single user case.
+
+### Supporting Multiple Input Streams
+
+With multiple input streams, the system will become highly stressed in both compute and memory. For example, when there are *N* users, each user needs to run her own ICP for pose estimation, and the scene model may need to be updated at *N*x frame rate. We anticipate the GPU will become fully loaded as both ICP and Voxel Hashing are run on it.
+
+We propose to tackle this problem by smartly **scheduling** the operations of each input streams. It includes:
+
+1. Re-ordering the ICP and Voxel Hashing steps among all inputs. Specifically, rearranging the order in which the inputs update the scene model may have significantly impact on memory reuse on GPU, because the voxel hash table is too large to reside entirely in GPU memory so there is swapping between CPU and GPU as in [1].
+
+2. Potentially skipping some input frames. When the system becomes highly loaded, we may want to skipping model update with some frames with minimal quality loss. One intuition is to skip a frame if the scene in its frustum is alreadly well reconstructed (as measured by a *confidence* score).
+
+Currently we are considering the following metrics that can be used to schedule the inputs:
+
++ The estimated camera pose
+
++ The velocity of the camera
+
++ The confidence of the frame's frustum
+
+
 
 ## Challenges
 
