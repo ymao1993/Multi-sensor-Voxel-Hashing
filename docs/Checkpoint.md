@@ -89,11 +89,11 @@ We propose to tackle this problem by smartly **scheduling** the operations of ea
 
 Currently we are considering the following metrics that can be used to schedule the inputs:
 
-+ The estimated camera pose
++ The number of unprocessed frames in each input's buffer
 
-+ The velocity of the camera
++ The estimated camera pose, and its locality with respect to the portion of hash table being in GPU memory
 
-+ The confidence of the frame's frustum
++ The confidence of the frame's frustum measuring how well the scene is reconstructed.
 
 
 
