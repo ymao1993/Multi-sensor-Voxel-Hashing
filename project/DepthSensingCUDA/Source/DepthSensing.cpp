@@ -4,6 +4,18 @@
 //#include "StructureSensor.h"
 #include "SensorDataReader.h"
 
+#include "Profiler.h"
+
+Profiler reconstructProfiler;
+
+#define ENABLE_PROFILE
+#ifdef ENABLE_PROFILE
+#define PROFILE_CODE(CODE) CODE
+#else
+#define PROFILE_CODE(CODE)
+#endif
+	
+
 //--------------------------------------------------------------------------------------
 // Global variables
 //--------------------------------------------------------------------------------------
@@ -218,6 +230,7 @@ void RenderHelp()
 	g_pTxtHelper->DrawTextLine(L"  \t'M':\t Debug hash");
 	g_pTxtHelper->DrawTextLine(L"  \t'N':\t Save hash to file");
 	g_pTxtHelper->DrawTextLine(L"  \t'N':\t Load hash from file");
+	g_pTxtHelper->DrawTextLine(L"  \t");
 	g_pTxtHelper->End();
 }
 
@@ -451,12 +464,17 @@ void CALLBACK OnKeyboard( UINT nChar, bool bKeyDown, bool bAltDown, void* pUserC
 			StopScanningAndLoadSDFHash("test.hashgrid");
 			break;
 		case 'I':
-			{
-				GlobalAppState::get().s_integrationEnabled = !GlobalAppState::get().s_integrationEnabled;
-				if (GlobalAppState::get().s_integrationEnabled)		std::cout << "integration enabled" << std::endl;
-				else std::cout << "integration disabled" << std::endl;
-			}
-
+			GlobalAppState::get().s_integrationEnabled = !GlobalAppState::get().s_integrationEnabled;
+			if (GlobalAppState::get().s_integrationEnabled)		std::cout << "integration enabled" << std::endl;
+			else std::cout << "integration disabled" << std::endl;
+			break;
+		case 'P':
+			reconstructProfiler.generateTimingStats();
+			reconstructProfiler.printTimingStats();
+			break;
+		case VK_ESCAPE:
+			exit(0);
+			break;
 		default:
 			break;
 		}
@@ -644,10 +662,6 @@ void CALLBACK OnD3D11ReleasingSwapChain( void* pUserContext )
  */
 void reconstruction()
 {
-	//
-	// 1. Perform ICP for tracking
-	//
-
 	//only if binary dump
 	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader) {
 		std::cout << "[ frame " << g_RGBDAdapter.getFrameNumber() << " ] " << " [Free SDFBlocks " << g_sceneRep->getHeapFreeCount() << " ] " << std::endl;
@@ -679,22 +693,13 @@ void reconstruction()
 
 		g_rayCast->render(g_sceneRep->getHashData(), g_sceneRep->getHashParams(), g_CudaDepthSensor.getDepthCameraData(), renderTransform);
 
- 
+		//
+		// 1. Perform ICP for tracking
+		//
+
 		if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_NetworkSensor)
 		{
 			mat4f rigid_transform_from_tango = g_RGBDAdapter.getRigidTransform();
-			//transformation = g_cameraTracking->applyCT(
-			//	g_CudaDepthSensor.getCameraSpacePositionsFloat4(), g_CudaDepthSensor.getNormalMapFloat4(), g_CudaDepthSensor.getColorMapFilteredFloat4(),
-			//	//g_rayCast->getRayCastData().d_depth4Transformed, g_CudaDepthSensor.getNormalMapNoRefinementFloat4(), g_CudaDepthSensor.getColorMapFilteredFloat4(),
-			//	g_rayCast->getRayCastData().d_depth4, g_rayCast->getRayCastData().d_normals, g_rayCast->getRayCastData().d_colors,
-			//	g_sceneRep->getLastRigidTransform(),
-			//	GlobalCameraTrackingState::getInstance().s_maxInnerIter, GlobalCameraTrackingState::getInstance().s_maxOuterIter,
-			//	GlobalCameraTrackingState::getInstance().s_distThres,	 GlobalCameraTrackingState::getInstance().s_normalThres,
-			//	100.0f, 3.0f,
-			//	g_sceneRep->getLastRigidTransform().getInverse()*rigid_transform_from_tango,
-			//	GlobalCameraTrackingState::getInstance().s_residualEarlyOut,
-			//	g_RGBDAdapter.getDepthIntrinsics(), g_CudaDepthSensor.getDepthCameraData(), 
-			//	NULL);
 			transformation = rigid_transform_from_tango;
 			if (transformation(0, 0) == -std::numeric_limits<float>::infinity()) {
 				std::cout << "Tracking lost in DepthSensing..." << std::endl;
@@ -717,6 +722,7 @@ void reconstruction()
 				mat4f deltaTransformEstimate = mat4f::identity();
 
 				const bool useRGBDTracking = false;	//Depth vs RGBD
+				PROFILE_CODE(reconstructProfiler.startTiming("ICP Tracking"));
 				if (!useRGBDTracking) {
 					transformation = g_cameraTracking->applyCT(
 						g_CudaDepthSensor.getCameraSpacePositionsFloat4(), g_CudaDepthSensor.getNormalMapFloat4(), g_CudaDepthSensor.getColorMapFilteredFloat4(),
@@ -747,27 +753,25 @@ void reconstruction()
 						g_RGBDAdapter.getDepthIntrinsics(), g_CudaDepthSensor.getDepthCameraData(), 
 						NULL);
 				}
+				PROFILE_CODE(reconstructProfiler.stopTiming("ICP Tracking"));
 			}
 		}
 	}
-
-
 	if (GlobalAppState::getInstance().s_recordData) {
 		g_RGBDAdapter.recordTrajectory(transformation);
 	}
-
+	
 	//
 	// 2. Perform Volumetric Integration with Voxel Hashing
 	//
-
 	if (transformation(0, 0) == -std::numeric_limits<float>::infinity()) {
 		std::cout << "!!! TRACKING LOST !!!" << std::endl;
 		GlobalAppState::get().s_reconstructionEnabled = false;
 		return;
 	}
 
-	// perform host-to-GPU and GPU-to-host streaming
 	if (GlobalAppState::get().s_streamingEnabled) {
+		PROFILE_CODE(reconstructProfiler.startTiming("Streaming"));
 		vec4f posWorld = transformation*GlobalAppState::getInstance().s_streamingPos; // trans laggs one frame *trans
 		vec3f p(posWorld.x, posWorld.y, posWorld.z);
 
@@ -775,11 +779,14 @@ void reconstruction()
 		g_chunkGrid->streamInToGPUPass1GPU(true);
 
 		//g_chunkGrid->debugCheckForDuplicates();
+		PROFILE_CODE(reconstructProfiler.stopTiming("Streaming"));
 	}
 
 	// perform integration
 	if (GlobalAppState::get().s_integrationEnabled) {
+		PROFILE_CODE(reconstructProfiler.startTiming("Integration"));
 		g_sceneRep->integrate(transformation, g_CudaDepthSensor.getDepthCameraData(), g_CudaDepthSensor.getDepthCameraParams(), g_chunkGrid->getBitMaskGPU());
+		PROFILE_CODE(reconstructProfiler.stopTiming("Integration"));
 	} else {
 		//compactification is required for the raycast splatting
 		g_sceneRep->setLastRigidTransformAndCompactify(transformation, g_CudaDepthSensor.getDepthCameraData());

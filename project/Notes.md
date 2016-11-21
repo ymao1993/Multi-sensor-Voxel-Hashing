@@ -36,8 +36,12 @@ The most important configuration is the sensor. The project supports a range of 
 
 A good practice when working on the project is to creat a bunch of scripts like runxxx.bat to specify what configuration files to use. And of course, to correctly run the program, the corrresponding macros should be enabled or disabled.
 
+### Profiling
+
+
+
 ### Resources
 
-+ **CUDA**: The main funtionalities including ICP estimation and Voxel Hashing are implemented with CUDA. Some useful CUDA tutorials can be found at [CUDA C Programming Guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html) and [CUDA C Best Practice Guide](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html).
++ **CUDA**: The main funtionalities including ICP estimation and Voxel Hashing are implemented with CUDA. Some useful CUDA tutorials can be found at [CUDA C Programming Guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html), [CUDA C/C++ Basics](http://www.nvidia.com/docs/io/116711/sc11-cuda-c-basics.pdf) and [CUDA C Best Practice Guide](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html).
 
 + **DXUT**: DXUT is a "GLUT"-like framework for Direct3D 11.x Windows desktop applications, primarily for samples, demos, and prototypes. It is used in _DepthSensing.cpp_ to set up some application callbacks. A brief Introduction and sample code with DXUT can be found [here](https://code.msdn.microsoft.com/DXUT-Tutorial-Win32-Sample-fe15e440).

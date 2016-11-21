@@ -1,4 +1,4 @@
-# Supporting Multi-User Concurrent Model Update in BundleFusion
+# Supporting Multi-User Concurrent Model Update in Voxel Hashing
 
 
 ## Team
@@ -10,42 +10,35 @@ Ziqiang Feng (zf@andrew.cmu.edu)
 
 ## Summary
 
-We will improve the BundleFusion system [3] in the following two aspects:
-
-1. Accelerating SIFT feature correspondence search with fast adaptive approximate nearest neighbor (ANN) search based on [2].
-
-2. Implementing functionality to support multiple users contributing to the 3D reconstruction.
-
-
-If time permits, we will further investigate global optimizations in the presence of multiple user input streams.
-
-For purpose of learning, we will rewrite the two modules from scratch.
+We will enhance Voxel Hashing based 3D reconstruction [4] with capability to handle multiple user input concurrently. That is, we can have multiple users scanning the environment with different devices and contribute to a shared 3D model.
 
 
 ## Background & Challenges
 
-Real-time, high-quality, 3D scanning of large-scale scenes is key to mixed reality and robotic applications. However, scalability brings challenges of drift in pose estimation, introducing significant errors in the accumulated model. Approaches often require hours of offline processing to globally correct model errors. Recent online methods demonstrate compelling results, but suffer from: (1) needing minutes to perform online correction preventing true real-time use; (2) brittle frame-to-frame (or frame-to-model) pose estimation resulting in many tracking failures; or (3) supporting only unstructured point-based representations, which limit scan quality and applicability. We systematically address these issues with a novel, real-time, end-to-end reconstruction framework. At its core is a robust pose estimation strategy, optimizing per frame for a global set of camera poses by considering the complete history of RGB-D input with an efficient hierarchical approach. We remove the heavy reliance on temporal tracking, and continually localize to the globally optimized frames instead. We contribute a parallelizable optimization framework, which employs correspondences based on sparse features and dense geometric and photometric matching. Our approach estimates globally optimized (i.e., bundle adjusted poses) in real-time, supports robust tracking with recovery from gross tracking failures (i.e., relocalization), and re-estimates the 3D model in real-time to ensure global consistency; all within a single framework. We outperform state-of-the-art online systems with quality on par to offline methods, but with unprecedented speed and scan completeness. Our framework leads to as-simple-as-possible scanning, enabling ease of use and high-quality results.
+### Voxel Hashing [4]
+
+Online 3D reconstruction is gaining newfound interest due to the availability of real-time consumer depth cameras. The basic problem takes live overlapping depth maps as input and incrementally fuses these into a single 3D model. This is challenging particularly when real-time performance is desired without trading quality or scale. We contribute an online system for large and fine scale volumetric reconstruction based on a memory and speed efficient data structure. Our system uses a simple spatial hashing scheme that compresses space, and allows for real-time access and updates of implicit surface data, without the need for a regular or hierarchical grid data structure. Surface data is only stored densely where measurements are observed. Additionally, data can be streamed efficiently in or out of the hash table, allowing for further scalability during sensor motion. We show interactive reconstructions of a variety of scenes, reconstructing both fine-grained details and large scale environments. We illustrate how all parts of our pipeline from depth map pre-processing, camera pose estimation, depth map fusion, and surface rendering are performed at real-time rates on commodity graphics hardware. We conclude with a comparison to current state-of-the-art online systems, illustrating improved performance and reconstruction quality.
 
 
-Challenges:
+### Challenges
 
-1. SIFT features of a new frame need to be matched with all previously seen frames, even in the presence of multiple user input streams.
+1. Handling concurrent updates to a shared 3D model poses challenges to avoid synchronization overhead and race conditions.
 
-2. Efficiently handling concurrent update to a global 3D model while reducing synchronization overhead.
+2. It is unclear how one should fuse input images from two different input streams.
 
-3. Accelerating relocalization if there are multiple users.
+3. Carrying out computation on multiple input streams poses scalability issue to the algorithm.
 
 
 ## Resources 
 
-+ **Data set**: RGB-D Scanning data from [3]
-+ **Machine**: a cluster of GPU nodes
-+ **Code**: We will be working based on BundleFusion's source code [3]. 
++ **Data set**: RGB-D Scanning data from [4]
++ **Machine**: Windows system with NVidia video cards (because the starter code requires DirectX).
++ **Code**: We will be working based on Voxel Hashing's source code [4]. 
 
 
 ## Goals & Deliverable
 
-The goal of our project is to deliver an improved BundleFusion system that can handle multiple users 3D reconstruction in real time.
+The goal of our project is to deliver an improved Voxel Hashing system that can handle multiple users 3D reconstruction in real time.
 
 
 
@@ -58,3 +51,5 @@ The goal of our project is to deliver an improved BundleFusion system that can h
 
 
 [[3] Dai, Angela, Matthias Nießner, Michael Zollhöfer, Shahram Izadi, and Christian Theobalt. "BundleFusion: Real-time Globally Consistent 3D Reconstruction using On-the-fly Surface Re-integration." arXiv preprint arXiv:1604.01093 (2016).](http://graphics.stanford.edu/projects/bundlefusion/)
+
+[[4] Nießner, M., Zollhöfer, M., Izadi, S., & Stamminger, M. (2013). Real-time 3D reconstruction at scale using voxel hashing. ACM Transactions on Graphics (TOG), 32(6), 169.](http://www.graphics.stanford.edu/~niessner/niessner2013hashing.html)
