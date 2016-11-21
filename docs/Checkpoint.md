@@ -1,3 +1,4 @@
+
 # Checkpoint Report: Supporting Multi-User Concurrent Model Update in Voxel Hashing 
 
 (21 Nov 2016)
@@ -36,8 +37,38 @@ Each frame undergoes two major steps: (1) Pose estimation via the iterative cloe
 
 ### Preliminary Profiles
 
-(profile numbers)
++ simple.sensor
 
+```
+=================Time Stats=================
+id      bucket name     total time      average time
+[1]     ICP Tracking    2199.00ms       52.3571ms
+[2]     Integration     270.00ms        6.2791ms
+[3]     Streaming       21.00ms 0.4884ms
+===================END======================
+```
+
++ nsh4224_dynamic.sensor
+
+```
+id      bucket name     total time      average time
+[1]     ICP Tracking    21171.00ms      54.4242ms
+[2]     Integration     2554.00ms       6.5487ms
+[3]     Streaming       849.00ms        2.1769ms
+```
+
++ nsh4224_static.sensor
+
+```
+=================Time Stats=================
+id      bucket name     total time      average time
+[1]     ICP Tracking    14796.00ms      49.6510ms
+[2]     Integration     1967.00ms       6.5786ms
+[3]     Streaming       109.00ms        0.3645ms
+===================END======================
+```
+
+The profiling result shows that ICP tracking is our bottleneck in the single user case.
 
 ## Challenges
 
