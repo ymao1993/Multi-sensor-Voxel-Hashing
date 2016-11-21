@@ -14,7 +14,7 @@ public:
 	{
 		std::string token;
 		std::vector<double> elapsed_time;
-		clock_t start, end;
+		DWORD start, end;
 		bool isTiming;
 
 		TimingLog(std::string token) :
@@ -53,5 +53,7 @@ private:
 	std::vector<StatsEntry> entries;
 	static bool StatsEntryCompare(StatsEntry& lhs, StatsEntry& rhs);
 };
+
+static Profiler profile;
 
 #endif

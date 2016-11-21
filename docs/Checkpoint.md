@@ -36,50 +36,54 @@ Below are some screenshots:
 ![nssh_2](screenshot1.jpg)
 
 
-### Code Structure
+### System Structure
 
 The Voxel Hashing system uses the DXUT application framework. Functions are registered to callbacks to handle input frames, perform 3D reconstruction and render the model on screen.
 
 Each frame undergoes two major steps: (1) Pose estimation via the iterative cloest point (ICP) algorithm and (2) world model update via Voxel Hashing.
 
-### Preliminary Profiles
+### Preliminary Profiling
 
-+ simple.sensor
-
-```
-=================Time Stats=================
-id      bucket name     total time      average time
-[1]     ICP Tracking    2199.00ms       52.3571ms
-[2]     Integration     270.00ms        6.2791ms
-[3]     Streaming       21.00ms 0.4884ms
-===================END======================
-```
-
-+ nsh4224_dynamic.sensor
-
-```
-id      bucket name     total time      average time
-[1]     ICP Tracking    21171.00ms      54.4242ms
-[2]     Integration     2554.00ms       6.5487ms
-[3]     Streaming       849.00ms        2.1769ms
-```
+We profiled the original code on the following three sequences. In **nsh4224_static.sensor** we are simply holding the sensor statically. In **nsh4224_dynamic.sensor** we are rotating and moving the Kinect within a small area. In the last sequence **nsh4224_dynamic_quick.sensor** we are rotating the Kinect by large angles in a random manner. The results are shown below:
 
 + nsh4224_static.sensor
 
 ```
 =================Time Stats=================
 id      bucket name     total time      average time
-[1]     ICP Tracking    14796.00ms      49.6510ms
-[2]     Integration     1967.00ms       6.5786ms
-[3]     Streaming       109.00ms        0.3645ms
+[1]     Integration     3451.00ms       11.5418ms
+[2]     ICP Tracking    1550.00ms       5.2013ms
+[3]     Streaming       141.00ms        0.4716ms
 ===================END======================
 ```
 
-The profiling result shows that ICP tracking is our bottleneck in the single user case.
++ nsh4224_dynamic.sensor
+
+```
+=================Time Stats=================
+id      bucket name     total time      average time
+[1]     Integration     5333.00ms       13.6744ms
+[2]     ICP Tracking    2186.00ms       5.6195ms
+[3]     Streaming       923.00ms        2.3667ms
+===================END======================
+```
+
++ nsh4224_dynamic_quick.sensor
+
+```
+=================Time Stats=================
+id      bucket name     total time      average time
+[1]     Integration     4353.00ms       13.9968ms
+[2]     Streaming       2475.00ms       7.9582ms
+[3]     ICP Tracking    1955.00ms       6.3065ms
+===================END======================
+```
+
+Notice that volumetric integration is still the most time-consuming part despite the fact that it is already parallelized on GPU. It is also noteworthy that When we are dealing with an RGBD camera which moves fast, the overhead of streaming voxels back and forth between CPU and GPU increases heavily. Compared to integration and data streaming, the time spent in ICP tracking is actually pretty stable.
 
 ### Supporting Multiple Input Streams
 
-With multiple input streams, the system will become highly stressed in both compute and memory. For example, when there are *N* users, each user needs to run her own ICP for pose estimation, and the scene model may need to be updated at *N*x frame rate. We anticipate the GPU will become fully loaded as both ICP and Voxel Hashing are run on it.
+With multiple input streams, the system will become highly stressed in both compute and memory. For example, when there are *N* users, each user needs to run her own ICP for pose estimation, and the scene model may need to be updated at *N*x frame rate. We anticipate the GPU will become fully loaded as both ICP and Voxel Hashing are running on it.
 
 We propose to tackle this problem by smartly **scheduling** the operations of each input streams. It includes:
 
@@ -96,14 +100,11 @@ Currently we are considering the following metrics that can be used to schedule 
 + The confidence of the frame's frustum measuring how well the scene is reconstructed.
 
 
-
 ## Challenges
 
-+ Modifying the DXUT-based system to support multiple input streams.
++ Modifying the system architecture to support multiple input streams.
 
-+ Accelerate the ICP algorithm as it is shown to be a bottleneck.
-
-+ Design a mechanism to allow for concurrent update to the voxel hash table (i.e., scene representation) with minimal synchronization overhead.
++ Designing a good scheduler to handle different input streams.
 
 
 ## Schedule
@@ -116,4 +117,4 @@ Currently we are considering the following metrics that can be used to schedule 
 
 References:
 
-[[1] Nießner, M., Zollhöfer, M., Izadi, S., & Stamminger, M. (2013). Real-time 3D reconstruction at scale using voxel hashing. ACM Transactions on Graphics (TOG), 32(6), 169.](http://www.graphics.stanford.edu/~niessner/niessner2013hashing.html)
+[[1] Nie??ner, M., Zollh??fer, M., Izadi, S., & Stamminger, M. (2013). Real-time 3D reconstruction at scale using voxel hashing. ACM Transactions on Graphics (TOG), 32(6), 169.](http://www.graphics.stanford.edu/~niessner/niessner2013hashing.html)

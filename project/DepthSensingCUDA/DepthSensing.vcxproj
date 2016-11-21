@@ -200,6 +200,7 @@
     <ClCompile Include="Source\NetworkSensor.cpp" />
     <ClCompile Include="Source\NetworkServer.cpp" />
     <ClCompile Include="Source\PrimeSenseSensor.cpp" />
+    <ClCompile Include="Source\Profiler.cpp" />
     <ClCompile Include="Source\RealSenseSensor.cpp" />
     <ClCompile Include="Source\RGBDSensor.cpp" />
     <ClCompile Include="Source\SensorDataReader.cpp" />
@@ -262,6 +263,7 @@
     <ClInclude Include="Source\NetworkSensor.h" />
     <ClInclude Include="Source\NetworkServer.h" />
     <ClInclude Include="Source\PrimeSenseSensor.h" />
+    <ClInclude Include="Source\Profiler.h" />
     <ClInclude Include="Source\RayCastSDFUtil.h" />
     <ClInclude Include="Source\RealSenseSensor.h" />
     <ClInclude Include="Source\Resource.h" />
@@ -304,6 +306,10 @@
     <None Include="Shaders\RayIntervalSplatting.hlsl">
       <FileType>Document</FileType>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="zParametersDefault.txt" />
+    <Text Include="zParametersYuBinaryDump.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

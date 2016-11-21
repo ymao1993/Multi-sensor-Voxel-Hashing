@@ -2,6 +2,7 @@
 #include "Profiler.h"
 #include <iostream>
 #include <algorithm>
+#include "cudaUtil.h"
 
 #define EXIT(STATUS)  {system("pause"); exit(STATUS);}
 
@@ -9,6 +10,7 @@ using namespace std;
 
 void Profiler::startTiming(const string& token)
 {
+	cudaDeviceSynchronize();
 	if (timingLogs.find(token) == timingLogs.end()) {
 		timingLogs[token] = TimingLog(token);
 	}
@@ -20,19 +22,20 @@ void Profiler::startTiming(const string& token)
 	}
 
 	log.isTiming = true;
-	log.start = clock();
+	log.start = GetTickCount();
 }
 
 void Profiler::stopTiming(const string& token)
 {
+	cudaDeviceSynchronize();
 	while (true)
 	{
 		if (timingLogs.find(token) == timingLogs.end()) break;
 		TimingLog& log = timingLogs[token];
 		if (!log.isTiming) break;
 
-		log.end = clock();
-		log.elapsed_time.push_back(((double)log.end - log.start) / CLOCKS_PER_SEC * 1000.);
+		log.end = GetTickCount();
+		log.elapsed_time.push_back((double)(log.end - log.start));
 		log.start = log.end = 0;
 		log.isTiming = false;
 		return;

@@ -164,6 +164,7 @@
     <ClCompile Include="Source\SensorDataReader.cpp">
       <Filter>Sensors</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Profiler.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\CameraParams.h" />
@@ -324,6 +325,7 @@
     <ClInclude Include="Source\SensorDataReader.h">
       <Filter>Sensors</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Profiler.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\QuadDrawer.hlsl">
@@ -370,5 +372,16 @@
     <Filter Include="DXHelper">
       <UniqueIdentifier>{46397a92-f0b7-4b0f-bbb0-a363517e6c46}</UniqueIdentifier>
     </Filter>
+    <Filter Include="configs">
+      <UniqueIdentifier>{e74dec40-5b93-410f-bf0f-ce3162958126}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="zParametersDefault.txt">
+      <Filter>configs</Filter>
+    </Text>
+    <Text Include="zParametersYuBinaryDump.txt">
+      <Filter>configs</Filter>
+    </Text>
   </ItemGroup>
 </Project>

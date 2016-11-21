@@ -3,10 +3,7 @@
 #include "DepthSensing.h"
 //#include "StructureSensor.h"
 #include "SensorDataReader.h"
-
 #include "Profiler.h"
-
-Profiler reconstructProfiler;
 
 #define ENABLE_PROFILE
 #ifdef ENABLE_PROFILE
@@ -469,8 +466,8 @@ void CALLBACK OnKeyboard( UINT nChar, bool bKeyDown, bool bAltDown, void* pUserC
 			else std::cout << "integration disabled" << std::endl;
 			break;
 		case 'P':
-			reconstructProfiler.generateTimingStats();
-			reconstructProfiler.printTimingStats();
+			profile.generateTimingStats();
+			profile.printTimingStats();
 			break;
 		case VK_ESCAPE:
 			exit(0);
@@ -722,7 +719,7 @@ void reconstruction()
 				mat4f deltaTransformEstimate = mat4f::identity();
 
 				const bool useRGBDTracking = false;	//Depth vs RGBD
-				PROFILE_CODE(reconstructProfiler.startTiming("ICP Tracking"));
+				PROFILE_CODE(profile.startTiming("ICP Tracking"));
 				if (!useRGBDTracking) {
 					transformation = g_cameraTracking->applyCT(
 						g_CudaDepthSensor.getCameraSpacePositionsFloat4(), g_CudaDepthSensor.getNormalMapFloat4(), g_CudaDepthSensor.getColorMapFilteredFloat4(),
@@ -753,7 +750,7 @@ void reconstruction()
 						g_RGBDAdapter.getDepthIntrinsics(), g_CudaDepthSensor.getDepthCameraData(), 
 						NULL);
 				}
-				PROFILE_CODE(reconstructProfiler.stopTiming("ICP Tracking"));
+				PROFILE_CODE(profile.stopTiming("ICP Tracking"));
 			}
 		}
 	}
@@ -771,7 +768,7 @@ void reconstruction()
 	}
 
 	if (GlobalAppState::get().s_streamingEnabled) {
-		PROFILE_CODE(reconstructProfiler.startTiming("Streaming"));
+		PROFILE_CODE(profile.startTiming("Streaming"));
 		vec4f posWorld = transformation*GlobalAppState::getInstance().s_streamingPos; // trans laggs one frame *trans
 		vec3f p(posWorld.x, posWorld.y, posWorld.z);
 
@@ -779,14 +776,14 @@ void reconstruction()
 		g_chunkGrid->streamInToGPUPass1GPU(true);
 
 		//g_chunkGrid->debugCheckForDuplicates();
-		PROFILE_CODE(reconstructProfiler.stopTiming("Streaming"));
+		PROFILE_CODE(profile.stopTiming("Streaming"));
 	}
 
 	// perform integration
 	if (GlobalAppState::get().s_integrationEnabled) {
-		PROFILE_CODE(reconstructProfiler.startTiming("Integration"));
+		PROFILE_CODE(profile.startTiming("Integration"));
 		g_sceneRep->integrate(transformation, g_CudaDepthSensor.getDepthCameraData(), g_CudaDepthSensor.getDepthCameraParams(), g_chunkGrid->getBitMaskGPU());
-		PROFILE_CODE(reconstructProfiler.stopTiming("Integration"));
+		PROFILE_CODE(profile.stopTiming("Integration"));
 	} else {
 		//compactification is required for the raycast splatting
 		g_sceneRep->setLastRigidTransformAndCompactify(transformation, g_CudaDepthSensor.getDepthCameraData());
