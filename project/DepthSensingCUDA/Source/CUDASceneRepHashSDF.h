@@ -61,7 +61,7 @@ public:
 	}
 
 	void integrate(const mat4f& lastRigidTransform, const DepthCameraData& depthCameraData, const DepthCameraParams& depthCameraParams, unsigned int* d_bitMask) {
-		
+
 		setLastRigidTransform(lastRigidTransform);
 
 		//make the rigid transform available on the GPU
@@ -79,6 +79,32 @@ public:
 		garbageCollect(depthCameraData);
 
 		m_numIntegratedFrames++;
+	}
+
+	void integrate_multisensor(const std::vector<const mat4f*>& lastRigidTransforms, const std::vector<const DepthCameraData*>& depthCameraDatas,
+		const std::vector<const DepthCameraParams*>& depthCameraParams, const std::vector<unsigned int*>& d_bitMasks){
+
+		// A stub temporarily processing only the first element from each array
+		// TODO streaming should probably be moved here too ...
+
+		setLastRigidTransform(*lastRigidTransforms[0]);
+
+		//make the rigid transform available on the GPU
+		m_hashData.updateParams(m_hashParams);	// TODO Confirm no change is need here
+
+		//allocate all hash blocks which are corresponding to depth map entries
+		alloc(*depthCameraDatas[0], *depthCameraParams[0], d_bitMasks[0]);
+
+		//generate a linear hash array with only occupied entries
+		compactifyHashEntries(*depthCameraDatas[0]);
+
+		//volumetrically integrate the depth data into the depth SDFBlocks
+		integrateDepthMap(*depthCameraDatas[0], *depthCameraParams[0]);
+
+		garbageCollect(*depthCameraDatas[0]);
+
+		m_numIntegratedFrames++;
+
 	}
 
 	void setLastRigidTransform(const mat4f& lastRigidTransform) {
@@ -110,7 +136,7 @@ public:
 
 	HashData& getHashData() {
 		return m_hashData;
-	} 
+	}
 
 	const HashParams& getHashParams() const {
 		return m_hashParams;
@@ -121,7 +147,7 @@ public:
 	unsigned int getHeapFreeCount() {
 		unsigned int count;
 		MLIB_CUDA_SAFE_CALL(cudaMemcpy(&count, m_hashData.d_heapCounter, sizeof(unsigned int), cudaMemcpyDeviceToHost));
-		return count+1;	//there is one more free than the address suggests (0 would be also a valid address)
+		return count + 1;	//there is one more free than the address suggests (0 would be also a valid address)
 	}
 
 	//! debug only!
@@ -155,10 +181,10 @@ public:
 				return x == other.x && y == other.y && z == other.z;
 			}
 
-			int x,y,z, i;
+			int x, y, z, i;
 			int offset;
 			int ptr;
-		}; 
+		};
 
 
 		std::unordered_set<unsigned int> pointersFreeHash;
@@ -170,7 +196,7 @@ public:
 		if (pointersFreeHash.size() != heapCounterCPU) {
 			throw MLIB_EXCEPTION("ERROR: duplicate free pointers in heap array");
 		}
-		 
+
 
 		unsigned int numOccupied = 0;
 		unsigned int numMinusOne = 0;
@@ -178,7 +204,7 @@ public:
 
 		std::list<myint3Voxel> l;
 		//std::vector<myint3Voxel> v;
-		
+
 		for (unsigned int i = 0; i < m_hashParams.m_hashBucketSize*m_hashParams.m_hashNumBuckets; i++) {
 			if (hashCPU[i].ptr == -1) {
 				numMinusOne++;
@@ -186,7 +212,7 @@ public:
 
 			if (hashCPU[i].ptr != -2) {
 				numOccupied++;	// != FREE_ENTRY
-				myint3Voxel a;	
+				myint3Voxel a;
 				a.x = hashCPU[i].pos.x;
 				a.y = hashCPU[i].pos.y;
 				a.z = hashCPU[i].pos.z;
@@ -204,7 +230,7 @@ public:
 		unsigned int numHeapFree = 0;
 		unsigned int numHeapOccupied = 0;
 		for (unsigned int i = 0; i < m_hashParams.m_numSDFBlocks; i++) {
-			if		(pointersFreeVec[i] == FREE_ENTRY) numHeapFree++;
+			if (pointersFreeVec[i] == FREE_ENTRY) numHeapFree++;
 			else if (pointersFreeVec[i] == LOCK_ENTRY) numHeapOccupied++;
 			else {
 				throw MLIB_EXCEPTION("memory leak detected: neither free nor allocated");
@@ -245,33 +271,33 @@ private:
 
 	void alloc(const DepthCameraData& depthCameraData, const DepthCameraParams& depthCameraParams, const unsigned int* d_bitMask) {
 		//Start Timing
-		if(GlobalAppState::get().s_timingsDetailledEnabled) { cutilSafeCall(cudaDeviceSynchronize()); m_timer.start(); }
+		if (GlobalAppState::get().s_timingsDetailledEnabled) { cutilSafeCall(cudaDeviceSynchronize()); m_timer.start(); }
 
 		resetHashBucketMutexCUDA(m_hashData, m_hashParams);
 		allocCUDA(m_hashData, m_hashParams, depthCameraData, depthCameraParams, d_bitMask);
 
 		// Stop Timing
-		if(GlobalAppState::get().s_timingsDetailledEnabled) { cutilSafeCall(cudaDeviceSynchronize()); m_timer.stop(); TimingLog::totalTimeAlloc += m_timer.getElapsedTimeMS(); TimingLog::countTimeAlloc++; }
+		if (GlobalAppState::get().s_timingsDetailledEnabled) { cutilSafeCall(cudaDeviceSynchronize()); m_timer.stop(); TimingLog::totalTimeAlloc += m_timer.getElapsedTimeMS(); TimingLog::countTimeAlloc++; }
 	}
 
 
 	void compactifyHashEntries(const DepthCameraData& depthCameraData) {
 		//Start Timing
-		if(GlobalAppState::get().s_timingsDetailledEnabled) { cutilSafeCall(cudaDeviceSynchronize()); m_timer.start(); }
+		if (GlobalAppState::get().s_timingsDetailledEnabled) { cutilSafeCall(cudaDeviceSynchronize()); m_timer.start(); }
 
 		fillDecisionArrayCUDA(m_hashData, m_hashParams, depthCameraData);
-		m_hashParams.m_numOccupiedBlocks = 
+		m_hashParams.m_numOccupiedBlocks =
 			m_cudaScan.prefixSum(
-				m_hashParams.m_hashNumBuckets*m_hashParams.m_hashBucketSize,
-				m_hashData.d_hashDecision,
-				m_hashData.d_hashDecisionPrefix);
+			m_hashParams.m_hashNumBuckets*m_hashParams.m_hashBucketSize,
+			m_hashData.d_hashDecision,
+			m_hashData.d_hashDecisionPrefix);
 
 		m_hashData.updateParams(m_hashParams);	//make sure numOccupiedBlocks is updated on the GPU
 
 		compactifyHashCUDA(m_hashData, m_hashParams);
 
 		// Stop Timing
-		if(GlobalAppState::get().s_timingsDetailledEnabled) { cutilSafeCall(cudaDeviceSynchronize()); m_timer.stop(); TimingLog::totalTimeCompactifyHash += m_timer.getElapsedTimeMS(); TimingLog::countTimeCompactifyHash++; }
+		if (GlobalAppState::get().s_timingsDetailledEnabled) { cutilSafeCall(cudaDeviceSynchronize()); m_timer.stop(); TimingLog::totalTimeCompactifyHash += m_timer.getElapsedTimeMS(); TimingLog::countTimeCompactifyHash++; }
 
 		//std::cout << "numOccupiedBlocks: " << m_hashParams.m_numOccupiedBlocks << std::endl;
 	}
@@ -279,19 +305,19 @@ private:
 	void integrateDepthMap(const DepthCameraData& depthCameraData, const DepthCameraParams& depthCameraParams) {
 		//Start Timing
 		profile.startTiming("integrateDepth");
-		if(GlobalAppState::get().s_timingsDetailledEnabled) { cutilSafeCall(cudaDeviceSynchronize()); m_timer.start(); }
+		if (GlobalAppState::get().s_timingsDetailledEnabled) { cutilSafeCall(cudaDeviceSynchronize()); m_timer.start(); }
 
 		integrateDepthMapCUDA(m_hashData, m_hashParams, depthCameraData, depthCameraParams);
 
 		// Stop Timing
-		if(GlobalAppState::get().s_timingsDetailledEnabled) { cutilSafeCall(cudaDeviceSynchronize()); m_timer.stop(); TimingLog::totalTimeIntegrate += m_timer.getElapsedTimeMS(); TimingLog::countTimeIntegrate++; }
+		if (GlobalAppState::get().s_timingsDetailledEnabled) { cutilSafeCall(cudaDeviceSynchronize()); m_timer.stop(); TimingLog::totalTimeIntegrate += m_timer.getElapsedTimeMS(); TimingLog::countTimeIntegrate++; }
 		profile.stopTiming("integrateDepth");
 	}
 
 	void garbageCollect(const DepthCameraData& depthCameraData) {
 		//only perform if enabled by global app state
 		if (GlobalAppState::get().s_garbageCollectionEnabled) {
-			
+
 			if (m_numIntegratedFrames > 0 && m_numIntegratedFrames % GlobalAppState::get().s_garbageCollectionStarve == 0) {
 				starveVoxelsKernelCUDA(m_hashData, m_hashParams);
 			}
@@ -299,7 +325,7 @@ private:
 			garbageCollectIdentifyCUDA(m_hashData, m_hashParams);
 			resetHashBucketMutexCUDA(m_hashData, m_hashParams);	//needed if linked lists are enabled -> for memeory deletion
 			garbageCollectFreeCUDA(m_hashData, m_hashParams);
-		} 
+		}
 	}
 
 
