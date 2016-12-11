@@ -24,6 +24,8 @@ public:
 	//! initializes the sensor
 	HRESULT createFirstConnected();
 
+	HRESULT createFirstConnected(std::string filename);
+
 	//! reads the next depth frame
 	HRESULT processDepth();
 	

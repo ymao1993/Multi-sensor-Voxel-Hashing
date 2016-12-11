@@ -96,7 +96,9 @@
 	X(bool, s_recordData) \
 	X(bool, s_recordCompression) \
 	X(std::string, s_recordDataFile) \
-	X(bool, s_reconstructionEnabled)
+	X(bool, s_reconstructionEnabled) \
+	X(std::string, s_binaryDumpSensorFileList)
+
 
 
 #ifndef VAR_NAME
@@ -118,7 +120,8 @@ public:
 		Sensor_IntelSensor = 5,
 		Sensor_RealSense = 6,
 		Sensor_StructureSensor = 7,
-		Sensor_SensorDataReader = 8
+		Sensor_SensorDataReader = 8,
+		Sensor_MultiBinaryDumpReader = 9
 	};
 
 #define X(type, name) type name;
