@@ -30,7 +30,7 @@ struct HashParams {
 	unsigned int	m_integrationWeightSample;
 	unsigned int	m_integrationWeightMax;
 
-	float3			m_streamingVoxelExtents;
+	float3			m_streamingChunkExtents;
 	int3			m_streamingGridDimensions;
 	int3			m_streamingMinGridPos;
 	unsigned int	m_streamingInitialChunkListSize;

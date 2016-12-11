@@ -83,8 +83,9 @@ extern "C" void updateConstantHashParams(const HashParams& hashParams);
  
 /**
  * VoxelHashData
- * Hashing module that can exist on both CPU and GPU.
- * Note that VoxelHashData also manages the actual voxel data.
+ * VoxelHashData manages the hash table, the voxel block data
+ * and provide primitive functionalities to access/modify the
+ * data.
  */
 struct VoxelHashData {
 
@@ -334,14 +335,14 @@ struct VoxelHashData {
 	}
 
 	__device__  
-	void deleteVoxel(Voxel& v) const {
+	void resetVoxel(Voxel& v) const {
 		v.color = make_uchar3(0,0,0);
 		v.weight = 0;
 		v.sdf = 0.0f;
 	}
 	__device__ 
-		void deleteVoxel(uint id) {
-			deleteVoxel(d_SDFBlocks[id]);
+		void resetVoxel(uint id) {
+			resetVoxel(d_SDFBlocks[id]);
 	}
 
 
@@ -350,7 +351,7 @@ struct VoxelHashData {
 		HashEntry hashEntry = getHashEntry(worldPos);
 		Voxel v;
 		if (hashEntry.ptr == FREE_ENTRY) {
-			deleteVoxel(v);			
+			resetVoxel(v);			
 		} else {
 			int3 virtualVoxelPos = worldToVirtualVoxelPos(worldPos);
 			v = d_SDFBlocks[hashEntry.ptr + virtualVoxelPosToLocalSDFBlockIndex(virtualVoxelPos)];
@@ -363,7 +364,7 @@ struct VoxelHashData {
 		HashEntry hashEntry = getHashEntryForSDFBlockPos(virtualVoxelPosToSDFBlock(virtualVoxelPos));
 		Voxel v;
 		if (hashEntry.ptr == FREE_ENTRY) {
-			deleteVoxel(v);			
+			resetVoxel(v);			
 		} else {
 			v = d_SDFBlocks[hashEntry.ptr + virtualVoxelPosToLocalSDFBlockIndex(virtualVoxelPos)];
 		}

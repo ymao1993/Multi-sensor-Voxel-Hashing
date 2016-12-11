@@ -86,7 +86,7 @@
 	X(bool, s_bUseCameraCalibration) \
 	X(unsigned int, s_marchingCubesMaxNumTriangles) \
 	X(bool, s_streamingEnabled) \
-	X(vec3f, s_streamingVoxelExtents) \
+	X(vec3f, s_streamingChunkExtents) \
 	X(vec3i, s_streamingGridDimensions) \
 	X(vec3i, s_streamingMinGridPos) \
 	X(unsigned int, s_streamingInitialChunkListSize) \

@@ -35,7 +35,7 @@ __global__ void resetHeapKernel(VoxelHashData voxelHashData)
 		uint blockSize = SDF_BLOCK_SIZE * SDF_BLOCK_SIZE * SDF_BLOCK_SIZE;
 		uint base_idx = idx * blockSize;
 		for (uint i = 0; i < blockSize; i++) {
-			voxelHashData.deleteVoxel(base_idx + i);
+			voxelHashData.resetVoxel(base_idx + i);
 		}
 	}
 }
@@ -133,9 +133,9 @@ __device__
 int3 worldToChunks(const float3& posWorld)
 {
 	float3 p;
-	p.x = posWorld.x/c_hashParams.m_streamingVoxelExtents.x;
-	p.y = posWorld.y/c_hashParams.m_streamingVoxelExtents.y;
-	p.z = posWorld.z/c_hashParams.m_streamingVoxelExtents.z;
+	p.x = posWorld.x/c_hashParams.m_streamingChunkExtents.x;
+	p.y = posWorld.y/c_hashParams.m_streamingChunkExtents.y;
+	p.z = posWorld.z/c_hashParams.m_streamingChunkExtents.z;
 
 	float3 s;
 	s.x = (float)sign(p.x);
@@ -553,7 +553,7 @@ __global__ void garbageCollectFreeKernel(VoxelHashData voxelHashData) {
 
 			#pragma unroll 1
 			for (uint i = 0; i < linBlockSize; i++) {	//clear sdf block: CHECK TODO another kernel?
-				voxelHashData.deleteVoxel(entry.ptr + i);
+				voxelHashData.resetVoxel(entry.ptr + i);
 			}
 		}
 	}

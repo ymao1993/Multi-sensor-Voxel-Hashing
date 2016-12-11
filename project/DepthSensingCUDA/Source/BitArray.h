@@ -1,5 +1,9 @@
 #pragma once
 
+/**
+ * BitArray
+ * A bit array class using class T as the underlying data structure
+ */
 template <class T>
 class BitArray
 {

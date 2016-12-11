@@ -24,6 +24,12 @@ extern "C" void starveVoxelsKernelCUDA(VoxelHashData& voxelHashData, const HashP
 extern "C" void garbageCollectIdentifyCUDA(VoxelHashData& voxelHashData, const HashParams& hashParams);
 extern "C" void garbageCollectFreeCUDA(VoxelHashData& voxelHashData, const HashParams& hashParams);
 
+/**
+ * CUDASceneRepHashSDF
+ * CUDASceneRepHashSDF manages the Voxel data and hash data on GPU, and
+ * implements the whole work flow of integration.
+ *
+ */
 class CUDASceneRepHashSDF
 {
 public:
@@ -49,7 +55,7 @@ public:
 		params.m_truncScale = gas.s_SDFTruncationScale;
 		params.m_integrationWeightSample = gas.s_SDFIntegrationWeightSample;
 		params.m_integrationWeightMax = gas.s_SDFIntegrationWeightMax;
-		params.m_streamingVoxelExtents = MatrixConversion::toCUDA(gas.s_streamingVoxelExtents);
+		params.m_streamingChunkExtents = MatrixConversion::toCUDA(gas.s_streamingChunkExtents);
 		params.m_streamingGridDimensions = MatrixConversion::toCUDA(gas.s_streamingGridDimensions);
 		params.m_streamingMinGridPos = MatrixConversion::toCUDA(gas.s_streamingMinGridPos);
 		params.m_streamingInitialChunkListSize = gas.s_streamingInitialChunkListSize;
@@ -116,7 +122,7 @@ public:
 		return m_hashParams;
 	}
 
-
+#pragma region debugHash
 	//! debug only!
 	unsigned int getHeapFreeCount() {
 		unsigned int count;
@@ -230,6 +236,9 @@ public:
 
 		//getchar();
 	}
+
+#pragma endregion
+
 private:
 
 	void create(const HashParams& params) {

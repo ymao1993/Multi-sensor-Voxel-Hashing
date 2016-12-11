@@ -9,7 +9,7 @@
 
 /**
  * SDFBlock
- * A block of SDF voxels, which is the minimum unit hashing unit.
+ * A block of SDF Voxels, which is the minimum unit hashing unit.
  */
 struct SDFBlock : public BinaryDataSerialize<SDFBlock>
 {
@@ -23,7 +23,8 @@ struct SDFBlock : public BinaryDataSerialize<SDFBlock>
 };
 
 /**
- * 
+ * SDFBlockDesc
+ * SDFBlockDesc encodes the ptr to and position of the SDF block.
  */
 class SDFBlockDesc : public BinaryDataSerialize<SDFBlockDesc> {
 public:
@@ -68,7 +69,20 @@ struct std::hash<SDFBlockDesc> : public std::unary_function<SDFBlockDesc, size_t
 };
 
 
-
+/**
+ * ChunkDesc
+ * We uniformly subdivide the world space into chunks (1m x 1m x 1m). GPU-to-CPU streaming is 
+ * performed on per SDF block basis. When SDF blocks and their hash entries are streamed from 
+ * CPU to GPU, we append them into the corresponding chunks. And later CPU-to-GPU streaming 
+ * operates on a per chunk basis, which means if a chunk is later identified for streaming, all
+ * SDF blocks inside the chunk will be streamed to GPU.
+ *
+ * The reason is that if CPU-to-GPU streaming is also performed on a per SDF block basis, then
+ * CPU would spend too much time to identify which SDF blocks to be streamed. Instead, we can just
+ * stream a chunk of blocks to GPU to utilize the high host-device bandwidth and GPU's ability
+ * to efficiently cull voxel blocks outside of the view frustum.
+ * 
+ */
 class ChunkDesc {
 public:
 	ChunkDesc(unsigned int initialChunkListSize) {
@@ -98,6 +112,10 @@ public:
 		m_SDFBlocks.clear();
 	}
 
+	/**
+	 * isStreamedOut
+	 * whether the chunk is streamed to CPU.
+	 */
 	bool isStreamedOut() const {
 		return m_SDFBlocks.size() > 0;
 	}
@@ -211,7 +229,7 @@ public:
 	void streamInToGPUPass0CPU(const vec3f& posCamera, float radius, bool useParts, bool multiThreaded = true);
 	void streamInToGPUPass1GPU(bool multiThreaded = true);
 
-	unsigned int integrateInHash(const vec3f& posCamera, float radius, bool useParts);
+	unsigned int gatherSDFBlocksForStreaming(const vec3f& posCamera, float radius, bool useParts);
 
 	void debugCheckForDuplicates() const;
 	void debugDump() const {
@@ -427,21 +445,6 @@ public:
 
 		std::cout << "Total number of Blocks on the CPU: " << nSDFBlocks << std::endl;
 	}
-
-	//void setPositionAndRadius(const vec3f& position, float radius, bool multiThreaded) {
-	//	if (multiThreaded) {
-	//		WaitForSingleObject(hEventSetTransformProduce, INFINITE);
-	//		WaitForSingleObject(hMutexSetTransform, INFINITE);
-	//	}
-
-	//	s_posCamera = position;
-	//	s_radius = radius;
-
-	//	if (multiThreaded) {
-	//		SetEvent(hEventSetTransformConsume);
-	//		ReleaseMutex(hMutexSetTransform);
-	//	}
-	//}
 
 #define HASH_GRID_VERSION 1
 
@@ -674,15 +677,16 @@ public:
 
 	unsigned int m_maxNumberOfSDFBlocksIntegrateFromGlobalHash;
 
+	// GPU->CPU
+	SDFBlockDesc*	d_SDFBlockDescOutput;
+	SDFBlock*		d_SDFBlockOutput;
 	SDFBlockDesc*	h_SDFBlockDescOutput;
 	SDFBlock*		h_SDFBlockOutput;
-	
-	SDFBlockDesc*	d_SDFBlockDescOutput;
+
+	// CPU->GPU
 	SDFBlockDesc*	d_SDFBlockDescInput;
-	SDFBlock*		d_SDFBlockOutput;
 	SDFBlock*		d_SDFBlockInput;
 	unsigned int*	d_SDFBlockCounter;
-
 
 	unsigned int*	d_bitMask;
 
@@ -698,11 +702,14 @@ public:
 
 	unsigned int m_initialChunkDescListSize;	 // initial size for vectors in the ChunkDesc
 
-	std::vector<ChunkDesc*>	m_grid; // Grid data
-	BitArray<unsigned int>	m_bitMask;
+	std::vector<ChunkDesc*>	m_grid;				// grid of chunks
+	BitArray<unsigned int>	m_bitMask;			// binary occupancy mask
 
-	unsigned int m_currentPart;
-	unsigned int m_streamOutParts;
+	// s_streamingOutParts is the number of frames required to sweep through the entire hash.
+	// we don't want to copy the SDF blocks outside of the active region back to CPU at once.
+	// Because it would be too slow.
+	unsigned int m_currentPart;					
+	unsigned int m_streamOutParts;				
 
 	// Multi-threading
 	HANDLE hStreamingThread;

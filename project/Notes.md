@@ -50,6 +50,9 @@ A good practice when working on the project is to creat a bunch of scripts like 
 
 + Maybe we can keep several active regions within one GPU for several users.
 
++ StreamingOutParts contols the number of frames required to sweep through the entrire hash to operate streaming out, which might be something interesting to look into.
+
+
 
 
 ### Resources
@@ -57,3 +60,5 @@ A good practice when working on the project is to creat a bunch of scripts like 
 + **CUDA**: The main funtionalities including ICP estimation and Voxel Hashing are implemented with CUDA. Some useful CUDA tutorials can be found at [CUDA C Programming Guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html), [CUDA C/C++ Basics](http://www.nvidia.com/docs/io/116711/sc11-cuda-c-basics.pdf) and [CUDA C Best Practice Guide](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html).
 
 + **DXUT**: DXUT is a "GLUT"-like framework for Direct3D 11.x Windows desktop applications, primarily for samples, demos, and prototypes. It is used in _DepthSensing.cpp_ to set up some application callbacks. A brief Introduction and sample code with DXUT can be found [here](https://code.msdn.microsoft.com/DXUT-Tutorial-Win32-Sample-fe15e440).
+
++ **Synchronization Primitives in Win API** Wait, Event, Single Object, etc...[here](https://msdn.microsoft.com/en-us/library/windows/desktop/ms681924(v=vs.85).aspx)

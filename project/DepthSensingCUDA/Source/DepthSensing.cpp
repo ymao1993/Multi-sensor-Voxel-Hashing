@@ -566,7 +566,7 @@ HRESULT CALLBACK OnD3D11CreateDevice(ID3D11Device* pd3dDevice, const DXGI_SURFAC
 	g_historgram = new CUDAHistrogramHashSDF(g_sceneRep->getHashParams());
 
 	g_chunkGrid = new CUDASceneRepChunkGrid(g_sceneRep, 
-		GlobalAppState::get().s_streamingVoxelExtents, 
+		GlobalAppState::get().s_streamingChunkExtents, 
 		GlobalAppState::get().s_streamingGridDimensions,
 		GlobalAppState::get().s_streamingMinGridPos,
 		GlobalAppState::get().s_streamingInitialChunkListSize,
