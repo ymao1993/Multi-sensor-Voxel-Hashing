@@ -24,8 +24,7 @@ MultiBinaryDumpReader::~MultiBinaryDumpReader()
 HRESULT MultiBinaryDumpReader::createFirstConnected()
 {
 	
-
-	// TODO Obtain file names from parameter
+	// Obtain file names from parameter
 	std::string s_filelist = GlobalAppState::get().s_binaryDumpSensorFileList;
 	std::istringstream ss(s_filelist);
 	std::string token;
@@ -43,6 +42,10 @@ HRESULT MultiBinaryDumpReader::createFirstConnected()
 		readers_.emplace_back();
 		readers_.back().createFirstConnected(filename);
 	}
+
+
+	std::cout << "Creating the surrogate ..." << std::endl;
+	BinaryDumpReader::createFirstConnected(filelist[0]);
 
 	return S_OK;
 }

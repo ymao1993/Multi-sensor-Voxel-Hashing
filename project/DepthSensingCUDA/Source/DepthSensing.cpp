@@ -667,7 +667,7 @@ void CALLBACK OnD3D11ReleasingSwapChain( void* pUserContext )
 void reconstruction()
 {
 	//only if binary dump
-	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader) {
+	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader) {
 		std::cout << "[ frame " << g_RGBDAdapter.getFrameNumber() << " ] " << " [Free SDFBlocks " << g_sceneRep->getHeapFreeCount() << " ] " << std::endl;
 	}
 	
@@ -687,8 +687,6 @@ void reconstruction()
 		std::cerr << "[15769] Wrong setting: not reading transformation from file." << std::endl;
 	}
 
-	assert((GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader)
-		&& GlobalAppState::get().s_binaryDumpSensorUseTrajectory);
 
 	if (g_RGBDAdapter.getFrameNumber() > 1) {
 		mat4f renderTransform = g_sceneRep->getLastRigidTransform();

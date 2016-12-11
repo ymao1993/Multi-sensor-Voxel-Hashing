@@ -13,7 +13,7 @@ This will consumes extra resource.
 */
 
 class MultiBinaryDumpReader :
-	public RGBDSensor
+	public BinaryDumpReader
 {
 public:
 	MultiBinaryDumpReader();
