@@ -12,17 +12,17 @@
 #include "TimingLog.h"
 #include "Profiler.h"
 
-extern "C" void resetCUDA(HashData& hashData, const HashParams& hashParams);
-extern "C" void resetHashBucketMutexCUDA(HashData& hashData, const HashParams& hashParams);
-extern "C" void allocCUDA(HashData& hashData, const HashParams& hashParams, const DepthCameraData& depthCameraData, const DepthCameraParams& depthCameraParams, const unsigned int* d_bitMask);
-extern "C" void fillDecisionArrayCUDA(HashData& hashData, const HashParams& hashParams, const DepthCameraData& depthCameraData);
-extern "C" void compactifyHashCUDA(HashData& hashData, const HashParams& hashParams);
-extern "C" void integrateDepthMapCUDA(HashData& hashData, const HashParams& hashParams, const DepthCameraData& depthCameraData, const DepthCameraParams& depthCameraParams);
+extern "C" void resetCUDA(VoxelHashData& voxelHashData, const HashParams& hashParams);
+extern "C" void resetHashBucketMutexCUDA(VoxelHashData& voxelHashData, const HashParams& hashParams);
+extern "C" void allocCUDA(VoxelHashData& voxelHashData, const HashParams& hashParams, const DepthCameraData& depthCameraData, const DepthCameraParams& depthCameraParams, const unsigned int* d_bitMask);
+extern "C" void fillDecisionArrayCUDA(VoxelHashData& voxelHashData, const HashParams& hashParams, const DepthCameraData& depthCameraData);
+extern "C" void compactifyHashCUDA(VoxelHashData& voxelHashData, const HashParams& hashParams);
+extern "C" void integrateDepthMapCUDA(VoxelHashData& voxelHashData, const HashParams& hashParams, const DepthCameraData& depthCameraData, const DepthCameraParams& depthCameraParams);
 extern "C" void bindInputDepthColorTextures(const DepthCameraData& depthCameraData);
 
-extern "C" void starveVoxelsKernelCUDA(HashData& hashData, const HashParams& hashParams);
-extern "C" void garbageCollectIdentifyCUDA(HashData& hashData, const HashParams& hashParams);
-extern "C" void garbageCollectFreeCUDA(HashData& hashData, const HashParams& hashParams);
+extern "C" void starveVoxelsKernelCUDA(VoxelHashData& voxelHashData, const HashParams& hashParams);
+extern "C" void garbageCollectIdentifyCUDA(VoxelHashData& voxelHashData, const HashParams& hashParams);
+extern "C" void garbageCollectFreeCUDA(VoxelHashData& voxelHashData, const HashParams& hashParams);
 
 class CUDASceneRepHashSDF
 {
@@ -108,7 +108,7 @@ public:
 	}
 
 
-	HashData& getHashData() {
+	VoxelHashData& getHashData() {
 		return m_hashData;
 	} 
 
@@ -305,7 +305,7 @@ private:
 
 
 	HashParams		m_hashParams;
-	HashData		m_hashData;
+	VoxelHashData		m_hashData;
 
 	CUDAScan		m_cudaScan;
 	unsigned int	m_numIntegratedFrames;	//used for garbage collect

@@ -8,7 +8,7 @@
 
 
 extern "C" void renderCS(
-	const HashData& hashData,
+	const VoxelHashData& voxelHashData,
 	const RayCastData &rayCastData, 
 	const DepthCameraData &cameraData,
 	const RayCastParams &rayCastParams);
@@ -17,7 +17,7 @@ extern "C" void computeNormals(float4* d_output, float4* d_input, unsigned int w
 extern "C" void convertDepthFloatToCameraSpaceFloat4(float4* d_output, float* d_input, float4x4 intrinsicsInv, unsigned int width, unsigned int height, const DepthCameraData& depthCameraData);
 
 extern "C" void resetRayIntervalSplatCUDA(RayCastData& data, const RayCastParams& params);
-extern "C" void rayIntervalSplatCUDA(const HashData& hashData, const DepthCameraData& cameraData,
+extern "C" void rayIntervalSplatCUDA(const VoxelHashData& voxelHashData, const DepthCameraData& cameraData,
 								 const RayCastData &rayCastData, const RayCastParams &rayCastParams);
 
 Timer CUDARayCastSDF::m_timer;
@@ -35,9 +35,9 @@ void CUDARayCastSDF::destroy(void)
 	m_rayIntervalSplatting.OnD3D11DestroyDevice();
 }
 
-void CUDARayCastSDF::render(const HashData& hashData, const HashParams& hashParams, const DepthCameraData& cameraData, const mat4f& lastRigidTransform)
+void CUDARayCastSDF::render(const VoxelHashData& voxelHashData, const HashParams& hashParams, const DepthCameraData& cameraData, const mat4f& lastRigidTransform)
 {
-	rayIntervalSplatting(hashData, hashParams, cameraData, lastRigidTransform);
+	rayIntervalSplatting(voxelHashData, hashParams, cameraData, lastRigidTransform);
 	m_data.d_rayIntervalSplatMinArray = m_rayIntervalSplatting.mapMinToCuda();
 	m_data.d_rayIntervalSplatMaxArray = m_rayIntervalSplatting.mapMaxToCuda();
 
@@ -48,7 +48,7 @@ void CUDARayCastSDF::render(const HashData& hashData, const HashParams& hashPara
 		m_timer.start();
 	}
 
-	renderCS(hashData, m_data, cameraData, m_params);
+	renderCS(voxelHashData, m_data, cameraData, m_params);
 
 	//convertToCameraSpace(cameraData);
 	if (!m_params.m_useGradients)
@@ -78,7 +78,7 @@ void CUDARayCastSDF::convertToCameraSpace(const DepthCameraData& cameraData)
 	}
 }
 
-void CUDARayCastSDF::rayIntervalSplatting(const HashData& hashData, const HashParams& hashParams, const DepthCameraData& cameraData, const mat4f& lastRigidTransform)
+void CUDARayCastSDF::rayIntervalSplatting(const VoxelHashData& voxelHashData, const HashParams& hashParams, const DepthCameraData& cameraData, const mat4f& lastRigidTransform)
 {
 	if (hashParams.m_numOccupiedBlocks == 0)	return;
 
@@ -93,5 +93,5 @@ void CUDARayCastSDF::rayIntervalSplatting(const HashData& hashData, const HashPa
 	m_data.updateParams(m_params); // !!! debugging
 
 	//don't use ray interval splatting (cf CUDARayCastSDF.cu -> line 40
-	//m_rayIntervalSplatting.rayIntervalSplatting(DXUTGetD3D11DeviceContext(), hashData, cameraData, m_data, m_params, m_params.m_numOccupiedSDFBlocks*6);
+	//m_rayIntervalSplatting.rayIntervalSplatting(DXUTGetD3D11DeviceContext(), voxelHashData, cameraData, m_data, m_params, m_params.m_numOccupiedSDFBlocks*6);
 }

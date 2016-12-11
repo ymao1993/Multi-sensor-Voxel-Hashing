@@ -5,7 +5,7 @@
 #include "CUDAMarchingCubesHashSDF.h"
 
 extern "C" void resetMarchingCubesCUDA(MarchingCubesData& data);
-extern "C" void extractIsoSurfaceCUDA(const HashData& hashData,
+extern "C" void extractIsoSurfaceCUDA(const VoxelHashData& voxelHashData,
 										 const RayCastData& rayCastData,
 										 const MarchingCubesParams& params,
 										 MarchingCubesData& data);
@@ -103,7 +103,7 @@ void CUDAMarchingCubesHashSDF::saveMesh(const std::string& filename, const mat4f
 
 }
 
-void CUDAMarchingCubesHashSDF::extractIsoSurface(const HashData& hashData, const HashParams& hashParams, const RayCastData& rayCastData,  const vec3f& minCorner, const vec3f& maxCorner, bool boxEnabled)
+void CUDAMarchingCubesHashSDF::extractIsoSurface(const VoxelHashData& voxelHashData, const HashParams& hashParams, const RayCastData& rayCastData,  const vec3f& minCorner, const vec3f& maxCorner, bool boxEnabled)
 {
 	resetMarchingCubesCUDA(m_data);
 
@@ -112,7 +112,7 @@ void CUDAMarchingCubesHashSDF::extractIsoSurface(const HashData& hashData, const
 	m_params.m_boxEnabled = boxEnabled;
 	m_data.updateParams(m_params);
 
-	extractIsoSurfaceCUDA(hashData, rayCastData, m_params, m_data);
+	extractIsoSurfaceCUDA(voxelHashData, rayCastData, m_params, m_data);
 	copyTrianglesToCPU();
 }
 
@@ -161,14 +161,14 @@ void CUDAMarchingCubesHashSDF::extractIsoSurface( CUDASceneRepChunkGrid& chunkGr
 
 
 /*
-void CUDAMarchingCubesHashSDF::extractIsoSurfaceCPU(const HashData& hashData, const HashParams& hashParams, const RayCastData& rayCastData)
+void CUDAMarchingCubesHashSDF::extractIsoSurfaceCPU(const VoxelHashData& voxelHashData, const HashParams& hashParams, const RayCastData& rayCastData)
 {
 	reset();
 	m_params.m_numOccupiedSDFBlocks = hashParams.m_numOccupiedBlocks;
 	m_data.updateParams(m_params);
 
 	MarchingCubesData cpuData = m_data.copyToCPU();
-	HashData		  cpuHashData = hashData.copyToCPU();
+	VoxelHashData		  cpuHashData = voxelHashData.copyToCPU();
 
 	for (unsigned int sdfBlockId = 0; sdfBlockId < m_params.m_numOccupiedSDFBlocks; sdfBlockId++) {
 		for (int x = 0; x < hashParams.m_SDFBlockSize; x++) {

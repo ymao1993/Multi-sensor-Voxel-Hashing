@@ -82,18 +82,18 @@ extern  __constant__ HashParams c_hashParams;
 extern "C" void updateConstantHashParams(const HashParams& hashParams);
  
 /**
- * HashData
+ * VoxelHashData
  * Hashing module that can exist on both CPU and GPU.
- * Note that HashData also manages the actual voxel data.
+ * Note that VoxelHashData also manages the actual voxel data.
  */
-struct HashData {
+struct VoxelHashData {
 
 	///////////////
 	// Host part //
 	///////////////
 
 	__device__ __host__
-	HashData() {
+	VoxelHashData() {
 		d_heap = NULL;
 		d_heapCounter = NULL;
 		d_hash = NULL;
