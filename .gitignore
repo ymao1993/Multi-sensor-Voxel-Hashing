@@ -1,0 +1,10 @@
+project/DepthSensingCUDA/CompiledShaders
+project/DepthSensingCUDA/Dump
+project/DepthSensingCUDA/ipch
+project/DepthSensingCUDA/x64
+project/DepthSensingCUDA/x86
+project/DepthSensingCUDA/*.vcxproj.user
+project/DepthSensingCUDA/*.pdb
+project/DepthSensingCUDA/*.sdf
+project/DepthSensingCUDA/*.suo
+

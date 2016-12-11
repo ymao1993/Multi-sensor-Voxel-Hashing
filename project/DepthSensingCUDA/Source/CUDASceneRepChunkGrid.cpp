@@ -78,16 +78,12 @@ void CUDASceneRepChunkGrid::streamOutToCPUPass0GPU(const vec3f& posCamera, float
 
 	if (useParts) m_currentPart = (m_currentPart+1) % m_streamOutParts;
 
+
+	//-------------------------------------------------------
+	// Pass 2: Copy SDFBlocks to output buffer
+	//-------------------------------------------------------
 	if (nSDFBlockDescs != 0) {
-		//std::cout << "SDFBlocks streamed out: " << nSDFBlockDescs << std::endl;
-
-		//-------------------------------------------------------
-		// Pass 2: Copy SDFBlocks to output buffer
-		//-------------------------------------------------------
-
 		integrateFromGlobalHashPass2CUDA(m_sceneRepHashSDF->getHashParams(), m_sceneRepHashSDF->getHashData(), threadsPerPart, d_SDFBlockDescOutput, (Voxel*)d_SDFBlockOutput, nSDFBlockDescs);
-
-
 		MLIB_CUDA_SAFE_CALL(cudaMemcpy(h_SDFBlockDescOutput, d_SDFBlockDescOutput, sizeof(SDFBlockDesc)*nSDFBlockDescs, cudaMemcpyDeviceToHost));
 		MLIB_CUDA_SAFE_CALL(cudaMemcpy(h_SDFBlockOutput, d_SDFBlockOutput, sizeof(SDFBlock)*nSDFBlockDescs, cudaMemcpyDeviceToHost));
 	}

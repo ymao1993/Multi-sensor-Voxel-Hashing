@@ -51,7 +51,7 @@ __global__ void integrateFromGlobalHashPass1Kernel(HashData hashData, uint start
 				uint addr = atomicAdd(&d_outputCounter[0], 1);
 				d_output[addr] = d;
 				hashData.appendHeap(entry.ptr/linBlockSize);
-				hashData.deleteHashEntry(bucketID);
+				hashData.resetHashEntry(bucketID);
 			#endif
 			#ifdef HANDLE_COLLISIONS
 				//if there is an offset or hash doesn't belong to the bucket (linked list)
@@ -66,7 +66,7 @@ __global__ void integrateFromGlobalHashPass1Kernel(HashData hashData, uint start
 					uint addr = atomicAdd(&d_outputCounter[0], 1);
 					d_output[addr] = d;
 					hashData.appendHeap(entry.ptr/linBlockSize);
-					hashData.deleteHashEntry(entry);
+					hashData.resetHashEntry(entry);
 				}
 			#endif
 		}

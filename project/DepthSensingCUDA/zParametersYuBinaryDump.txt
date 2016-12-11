@@ -41,10 +41,10 @@ s_SDFRayThresSampleDistFactor = 50.5f;	//(don't touch) s_SDFRayThresSampleDist =
 s_SDFRayThresDistFactor = 50.0f;		//(don't touch) s_SDFRayThresDist = s_SDFRayThresSampleDistFactor*s_rayIncrement;
 s_SDFUseGradients 		= false;		//analytic gradients for rendering
 
-// s_binaryDumpSensorFile = "Dump/simple.sensor";
+s_binaryDumpSensorFile = "Dump/simple.sensor";
 // s_binaryDumpSensorFile = "Dump/nsh4224_dynamic.sensor";
 // s_binaryDumpSensorFile = "Dump/nsh4224_static.sensor";
-s_binaryDumpSensorFile = "Dump/nsh4224_dynamic_quick.sensor"
+// s_binaryDumpSensorFile = "Dump/nsh4224_dynamic_quick.sensor"
 
 s_binaryDumpSensorUseTrajectory = false;				    // use the recorded trajectory form the binary dump as the our rigid transformation estimation.
 s_binaryDumpSensorUseTrajectoryOnlyInit = false;	    // This option is valid only if the previous one is set true. If it is false, then for every frame we will be using the precomputed traj instead of performing ICP. Otherwise we will only be using the precomputed traj for the first frame.
@@ -92,12 +92,12 @@ s_marchingCubesMaxNumTriangles = 2500000; // max buffer size for marching cube
 //streaming parameters
 s_streamingEnabled = true;
 s_streamingVoxelExtents = 1.0f 1.0f 1.0f;
-s_streamingGridDimensions = 257 257 257; // dimensions have to be odd (number of samples)
+s_streamingGridDimensions = 257 257 257;		// dimensions have to be odd (number of samples)
 s_streamingMinGridPos = -128 -128 -128;
 s_streamingInitialChunkListSize = 2000;
-s_streamingRadius = 4.0f; // Depends on DepthMin and DepthMax 
-s_streamingPos = 0.0f 0.0f 3.0f 1.0f; // Depends on DepthMin and DepthMax
-s_streamingOutParts = 80;	// number of frames required to sweep through the entire hash
+s_streamingRadius = 4.0f;						// Radius of the active region, depending on DepthMin and DepthMax 
+s_streamingPos = 0.0f 0.0f 3.0f 1.0f;			//  Center of the active region in camera space, depending on DepthMin and DepthMax
+s_streamingOutParts = 80;						// number of frames required to sweep through the entire hash
 
 //recording of the input data
 s_recordData = true;				// master flag for data recording: enables or disables data recording

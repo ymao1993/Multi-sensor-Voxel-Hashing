@@ -7,12 +7,13 @@
 
 #include "BitArray.h"
 
-
+/**
+ * SDFBlock
+ * A block of SDF voxels, which is the minimum unit hashing unit.
+ */
 struct SDFBlock : public BinaryDataSerialize<SDFBlock>
 {
 	Voxel data[SDF_BLOCK_SIZE*SDF_BLOCK_SIZE*SDF_BLOCK_SIZE];
-	//int data[2*SDF_BLOCK_SIZE*SDF_BLOCK_SIZE*SDF_BLOCK_SIZE];
-
 	static vec3ui delinearizeVoxelIndex(uint idx) {
 		uint x = idx % SDF_BLOCK_SIZE;
 		uint y = (idx % (SDF_BLOCK_SIZE * SDF_BLOCK_SIZE)) / SDF_BLOCK_SIZE;
@@ -21,7 +22,9 @@ struct SDFBlock : public BinaryDataSerialize<SDFBlock>
 	}
 };
 
-
+/**
+ * 
+ */
 class SDFBlockDesc : public BinaryDataSerialize<SDFBlockDesc> {
 public:
 

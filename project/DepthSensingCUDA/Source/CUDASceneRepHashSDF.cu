@@ -35,18 +35,18 @@ __global__ void resetHeapKernel(HashData hashData)
 		uint blockSize = SDF_BLOCK_SIZE * SDF_BLOCK_SIZE * SDF_BLOCK_SIZE;
 		uint base_idx = idx * blockSize;
 		for (uint i = 0; i < blockSize; i++) {
-			hashData.deleteVoxel(base_idx+i);
+			hashData.deleteVoxel(base_idx + i);
 		}
 	}
 }
 
-__global__ void resetHashKernel(HashData hashData) 
+__global__ void resetHashKernel(HashData hashData)
 {
 	const HashParams& hashParams = c_hashParams;
 	const unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
 	if (idx < hashParams.m_hashNumBuckets * HASH_BUCKET_SIZE) {
-		hashData.deleteHashEntry(hashData.d_hash[idx]);
-		hashData.deleteHashEntry(hashData.d_hashCompactified[idx]);
+		hashData.resetHashEntry(hashData.d_hash[idx]);
+		hashData.resetHashEntry(hashData.d_hashCompactified[idx]);
 	}
 }
 

@@ -659,11 +659,10 @@ void CALLBACK OnD3D11ReleasingSwapChain( void* pUserContext )
  */
 void reconstruction()
 {
-	//only if binary dump
 	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader) {
 		std::cout << "[ frame " << g_RGBDAdapter.getFrameNumber() << " ] " << " [Free SDFBlocks " << g_sceneRep->getHeapFreeCount() << " ] " << std::endl;
 	}
-	
+
 	mat4f transformation = mat4f::identity();
 	if ((GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader) 
 		&& GlobalAppState::get().s_binaryDumpSensorUseTrajectory) {
@@ -675,8 +674,14 @@ void reconstruction()
 		}
 	}
 
+	//
+	// Perform ICP for tracking
+	// After this step, transformation matrix is set.
+	//
+#pragma region ignored
 	if (g_RGBDAdapter.getFrameNumber() > 1) {
 		mat4f renderTransform = g_sceneRep->getLastRigidTransform();
+		
 		//if we have a pre-recorded trajectory; use it as an init (if specificed to do so)
 		if ((GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader)
 			&& GlobalAppState::get().s_binaryDumpSensorUseTrajectory
@@ -689,11 +694,6 @@ void reconstruction()
 		}
 
 		g_rayCast->render(g_sceneRep->getHashData(), g_sceneRep->getHashParams(), g_CudaDepthSensor.getDepthCameraData(), renderTransform);
-
-		//
-		// 1. Perform ICP for tracking
-		//
-
 		if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_NetworkSensor)
 		{
 			mat4f rigid_transform_from_tango = g_RGBDAdapter.getRigidTransform();
@@ -705,16 +705,18 @@ void reconstruction()
 		}
 		else
 		{
-			//static ICPErrorLog errorLog;
 			if (!GlobalAppState::get().s_trackingEnabled) {
 				transformation.setIdentity();
 			}
+
 			else if (
 				(GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader)
 				&& GlobalAppState::get().s_binaryDumpSensorUseTrajectory
 				&& !GlobalAppState::get().s_binaryDumpSensorUseTrajectoryOnlyInit) {
 				//actually: nothing to do here; transform is already set: just don't do icp and use pre-recorded trajectory
-			} else {
+			}
+
+			else {
 				mat4f lastTransform = g_sceneRep->getLastRigidTransform();
 				mat4f deltaTransformEstimate = mat4f::identity();
 
@@ -754,22 +756,25 @@ void reconstruction()
 			}
 		}
 	}
+#pragma endregion
 	if (GlobalAppState::getInstance().s_recordData) {
 		g_RGBDAdapter.recordTrajectory(transformation);
 	}
 	
-	//
-	// 2. Perform Volumetric Integration with Voxel Hashing
-	//
 	if (transformation(0, 0) == -std::numeric_limits<float>::infinity()) {
 		std::cout << "!!! TRACKING LOST !!!" << std::endl;
 		GlobalAppState::get().s_reconstructionEnabled = false;
 		return;
 	}
 
+	//
+	// Streaming
+	// Bidirectional Host-Device Data Streaming 
+	//
+
 	if (GlobalAppState::get().s_streamingEnabled) {
 		PROFILE_CODE(profile.startTiming("Streaming"));
-		vec4f posWorld = transformation*GlobalAppState::getInstance().s_streamingPos; // trans laggs one frame *trans
+		vec4f posWorld = transformation*GlobalAppState::getInstance().s_streamingPos; // center of the active region
 		vec3f p(posWorld.x, posWorld.y, posWorld.z);
 
 		g_chunkGrid->streamOutToCPUPass0GPU(p, GlobalAppState::get().s_streamingRadius, true, true);
@@ -778,6 +783,10 @@ void reconstruction()
 		//g_chunkGrid->debugCheckForDuplicates();
 		PROFILE_CODE(profile.stopTiming("Streaming"));
 	}
+
+	//
+	// Integration
+	//
 
 	// perform integration
 	if (GlobalAppState::get().s_integrationEnabled) {

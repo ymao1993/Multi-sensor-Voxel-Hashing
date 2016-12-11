@@ -36,7 +36,19 @@ The most important configuration is the sensor. The project supports a range of 
 
 A good practice when working on the project is to creat a bunch of scripts like runxxx.bat to specify what configuration files to use. And of course, to correctly run the program, the corrresponding macros should be enabled or disabled.
 
-### Profiling
+### Profiling & Analysis
+
+### Convention
+
++ **Cooridnate System**: the coordinate system in the starter code follows DirectX's left-hand convention.
+
+### Thoughts
+
++ There is no need to write the ICP output to a binary file and read it in runtime. ICP process can be skipped if the frames are read from binary dump.
+
++ We need to write a multi-user sensor adaptor (definitely).
+
++ Maybe we can keep several active regions within one GPU for several users.
 
 
 
