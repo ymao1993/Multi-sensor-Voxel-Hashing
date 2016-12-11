@@ -43,7 +43,7 @@ HRESULT MultiBinaryDumpReader::createFirstConnected()
 		readers_.back().createFirstConnected(filename);
 	}
 
-
+	// XXX
 	std::cout << "Creating the surrogate ..." << std::endl;
 	BinaryDumpReader::createFirstConnected(filelist[0]);
 
@@ -56,6 +56,11 @@ HRESULT MultiBinaryDumpReader::createFirstConnected()
 */
 HRESULT MultiBinaryDumpReader::processDepth()
 {
+	// XXX
+	std::cout << "Surrogate processDepth()" << std::endl;
+	BinaryDumpReader::processDepth();
+
+
 	for (auto& r : readers_){
 		// TODO Not very clear what's done here.
 		r.processDepth();

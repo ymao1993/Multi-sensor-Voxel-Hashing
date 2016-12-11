@@ -32,19 +32,30 @@ public:
 	}
 
 	std::string getSensorName() const {
-		return readers_[0].getSensorName();
+		// XXX
+		return BinaryDumpReader::getSensorName();
 	}
 
 	mat4f getRigidTransform(int offset) const {
-		return readers_[0].getRigidTransform(offset);
+		// XXX
+		return BinaryDumpReader::getRigidTransform(offset);
 	}
 
 	mat4f getRigidTransformById(size_t id, int offset) const {
 		return readers_[id].getRigidTransform(offset);
 	}
 
+	size_t getActiveId() const {
+		return active_id_;
+	}
+
+	void setActiveId(size_t id){
+		active_id_ = id;
+	}
+
 
 private:
 	std::vector<BinaryDumpReader> readers_;
+	size_t active_id_ = 0;
 };
 

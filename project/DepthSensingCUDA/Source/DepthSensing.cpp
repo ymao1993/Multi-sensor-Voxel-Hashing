@@ -539,6 +539,7 @@ HRESULT CALLBACK OnD3D11CreateDevice(ID3D11Device* pd3dDevice, const DXGI_SURFAC
 	}
 
 	//static init
+	// TODO See if we can tweak here ...
 	V_RETURN(g_RGBDAdapter.OnD3D11CreateDevice(pd3dDevice, getRGBDSensor(), GlobalAppState::get().s_adapterWidth, GlobalAppState::get().s_adapterHeight)); 
 	V_RETURN(g_CudaDepthSensor.OnD3D11CreateDevice(pd3dDevice, &g_RGBDAdapter)); 
 
@@ -661,11 +662,106 @@ void CALLBACK OnD3D11ReleasingSwapChain( void* pUserContext )
 	g_DialogResourceManager.OnD3D11ReleasingSwapChain();
 }
 
+
+/**
+* 15769: Entry point for reconstruction procedure for multi binary dump.
+* Everything goes in here.
+*/
+void reconstruction_multi_dump(){
+	assert(GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiBinaryDumpReader);
+	assert(GlobalAppState::get().s_binaryDumpSensorUseTrajectory);
+
+	std::cout << "[ frame " << g_RGBDAdapter.getFrameNumber() << " ] " << " [Free SDFBlocks " << g_sceneRep->getHeapFreeCount() << " ] " << std::endl;
+
+	mat4f transformation = mat4f::identity();
+
+	if (GlobalAppState::get().s_binaryDumpSensorUseTrajectory)
+	{
+		// The transformation is set here from the binary file directly. No need to run ICP below.
+		transformation = g_RGBDAdapter.getRigidTransform();
+
+		if (transformation[0] == -std::numeric_limits<float>::infinity()) {
+			std::cout << "INVALID FRAME" << std::endl;
+			return;
+		}
+	}
+
+	if (g_RGBDAdapter.getFrameNumber() > 1) {
+		mat4f renderTransform = g_sceneRep->getLastRigidTransform();
+		//if we have a pre-recorded trajectory; use it as an init (if specificed to do so)
+		if (GlobalAppState::get().s_binaryDumpSensorUseTrajectory
+			&& GlobalAppState::get().s_binaryDumpSensorUseTrajectoryOnlyInit) {
+			//deltaTransformEstimate = lastTransform.getInverse() * transformation;
+			mat4f deltaTransformEstimate = g_RGBDAdapter.getRigidTransform(-1).getInverse() * transformation;
+			renderTransform = renderTransform * deltaTransformEstimate;
+			g_sceneRep->setLastRigidTransformAndCompactify(renderTransform, g_CudaDepthSensor.getDepthCameraData());
+			//TODO if this is enabled there is a problem with the ray interval splatting
+		}
+
+		g_rayCast->render(g_sceneRep->getHashData(), g_sceneRep->getHashParams(), g_CudaDepthSensor.getDepthCameraData(), renderTransform);
+	}
+
+
+	if (GlobalAppState::getInstance().s_recordData) {
+		g_RGBDAdapter.recordTrajectory(transformation);
+	}
+
+	//
+	// 2. Perform Volumetric Integration with Voxel Hashing
+	//
+	if (transformation(0, 0) == -std::numeric_limits<float>::infinity()) {
+		std::cout << "!!! TRACKING LOST !!!" << std::endl;
+		GlobalAppState::get().s_reconstructionEnabled = false;
+		return;
+	}
+
+	if (GlobalAppState::get().s_streamingEnabled) {
+		PROFILE_CODE(profile.startTiming("Streaming"));
+		vec4f posWorld = transformation*GlobalAppState::getInstance().s_streamingPos; // trans laggs one frame *trans
+		vec3f p(posWorld.x, posWorld.y, posWorld.z);
+
+		g_chunkGrid->streamOutToCPUPass0GPU(p, GlobalAppState::get().s_streamingRadius, true, true);
+		g_chunkGrid->streamInToGPUPass1GPU(true);
+
+		//g_chunkGrid->debugCheckForDuplicates();
+		PROFILE_CODE(profile.stopTiming("Streaming"));
+	}
+
+	// perform integration
+	if (GlobalAppState::get().s_integrationEnabled) {
+		PROFILE_CODE(profile.startTiming("Integration"));
+
+		//g_sceneRep->integrate(transformation, g_CudaDepthSensor.getDepthCameraData(), g_CudaDepthSensor.getDepthCameraParams(), g_chunkGrid->getBitMaskGPU());
+
+		std::vector<const mat4f*> lastRigidTransforms;
+		std::vector<const DepthCameraData*> depthCameraDatas;
+		std::vector<const DepthCameraParams*> depthCameraParams;
+		std::vector<unsigned int*> d_bitMasks;
+
+		lastRigidTransforms.push_back(&transformation);
+		depthCameraDatas.push_back(&(g_CudaDepthSensor.getDepthCameraData()));
+		depthCameraParams.push_back(&(g_CudaDepthSensor.getDepthCameraParams()));
+		d_bitMasks.push_back(g_chunkGrid->getBitMaskGPU());
+
+		g_sceneRep->integrate_multisensor(lastRigidTransforms, depthCameraDatas, depthCameraParams, d_bitMasks);
+
+		PROFILE_CODE(profile.stopTiming("Integration"));
+	}
+	else {
+		//compactification is required for the raycast splatting
+		g_sceneRep->setLastRigidTransformAndCompactify(transformation, g_CudaDepthSensor.getDepthCameraData());
+	}
+}
+
 /**
  * The entry point for the 3d reconstruction procedure
  */
 void reconstruction()
 {
+	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiBinaryDumpReader){
+		return reconstruction_multi_dump();
+	}
+
 	//only if binary dump
 	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader) {
 		std::cout << "[ frame " << g_RGBDAdapter.getFrameNumber() << " ] " << " [Free SDFBlocks " << g_sceneRep->getHeapFreeCount() << " ] " << std::endl;
@@ -682,9 +778,6 @@ void reconstruction()
 			std::cout << "INVALID FRAME" << std::endl;
 			return;
 		}
-	}
-	else{
-		std::cerr << "[15769] Wrong setting: not reading transformation from file." << std::endl;
 	}
 
 
