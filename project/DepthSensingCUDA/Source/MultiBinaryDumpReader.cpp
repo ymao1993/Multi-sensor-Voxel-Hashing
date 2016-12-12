@@ -42,13 +42,12 @@ HRESULT MultiBinaryDumpReader::createFirstConnected()
 		readers_.emplace_back();
 	}
 
+	// IMPORTANT seperate creation and initialization
+	// at avoid vector's reallocating causes error
 	for (size_t i = 0; i < filelist.size(); i++){
 		readers_[i].createFirstConnected(filelist[i]);
 	}
 
-	//// XXX
-	//std::cout << "Creating the surrogate ..." << std::endl;
-	//BinaryDumpReader::createFirstConnected(filelist[0]);
 
 	return S_OK;
 }

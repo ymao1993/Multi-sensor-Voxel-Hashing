@@ -946,20 +946,6 @@ void reconstruction()
 		PROFILE_CODE(profile.startTiming("Integration", g_RGBDAdapter.getFrameNumber()));
 		g_sceneRep->integrate(transformation, g_CudaDepthSensor.getDepthCameraData(), g_CudaDepthSensor.getDepthCameraParams(), g_chunkGrid->getBitMaskGPU());
 		PROFILE_CODE(profile.stopTiming("Integration", g_RGBDAdapter.getFrameNumber()));
-		
-		std::vector<const mat4f*> lastRigidTransforms;
-		std::vector<const DepthCameraData*> depthCameraDatas;
-		std::vector<const DepthCameraParams*> depthCameraParams;
-		std::vector<unsigned int*> d_bitMasks;
-
-		lastRigidTransforms.push_back(&transformation);
-		depthCameraDatas.push_back(&(g_CudaDepthSensor.getDepthCameraData()));
-		depthCameraParams.push_back(&(g_CudaDepthSensor.getDepthCameraParams()));
-		d_bitMasks.push_back(g_chunkGrid->getBitMaskGPU());
-		
-		g_sceneRep->integrate_multisensor(lastRigidTransforms, depthCameraDatas, depthCameraParams, d_bitMasks);
-		
-		PROFILE_CODE(profile.stopTiming("Integration"));
 	} else {
 		//compactification is required for the raycast splatting
 		g_sceneRep->setLastRigidTransformAndCompactify(transformation, g_CudaDepthSensor.getDepthCameraData());
