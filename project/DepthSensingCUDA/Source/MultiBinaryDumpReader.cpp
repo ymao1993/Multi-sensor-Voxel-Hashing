@@ -43,9 +43,9 @@ HRESULT MultiBinaryDumpReader::createFirstConnected()
 		readers_.back().createFirstConnected(filename);
 	}
 
-	// XXX
-	std::cout << "Creating the surrogate ..." << std::endl;
-	BinaryDumpReader::createFirstConnected(filelist[0]);
+	//// XXX
+	//std::cout << "Creating the surrogate ..." << std::endl;
+	//BinaryDumpReader::createFirstConnected(filelist[0]);
 
 	return S_OK;
 }
@@ -56,10 +56,10 @@ HRESULT MultiBinaryDumpReader::createFirstConnected()
 */
 HRESULT MultiBinaryDumpReader::processDepth()
 {
-	// XXX
-	std::cout << "Surrogate processDepth()" << std::endl;
-	BinaryDumpReader::processDepth();
-
+	//// XXX
+	//std::cout << "Surrogate processDepth()" << std::endl;
+	//BinaryDumpReader::processDepth();
+	assert(false);	// should not call this
 
 	for (auto& r : readers_){
 		// TODO Not very clear what's done here.

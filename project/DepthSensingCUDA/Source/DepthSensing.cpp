@@ -4,6 +4,7 @@
 //#include "StructureSensor.h"
 #include "SensorDataReader.h"
 #include "Profiler.h"
+#include "MultiBinaryDumpReader.h"
 
 #define ENABLE_PROFILE
 #ifdef ENABLE_PROFILE
@@ -22,9 +23,14 @@ CDXUTTextHelper*            g_pTxtHelper = NULL;
 bool						g_renderText = true;
 bool						g_bRenderHelp = true;
 
+// 15769 Multi sensors
+#define MAX_SENSORS (10)
+CUDARGBDSensor g_CudaDepthSensors[MAX_SENSORS];
+CUDARGBDAdapter g_RGBDAdapters[MAX_SENSORS];
+
 CModelViewerCamera          g_Camera;               // A model viewing camera
-CUDARGBDSensor				g_CudaDepthSensor;
-CUDARGBDAdapter				g_RGBDAdapter;
+CUDARGBDSensor				&g_CudaDepthSensor = g_CudaDepthSensors[0];
+CUDARGBDAdapter				&g_RGBDAdapter = g_RGBDAdapters[0];
 DX11RGBDRenderer			g_RGBDRenderer;
 DX11CustomRenderTarget		g_CustomRenderTarget;
 
@@ -539,9 +545,23 @@ HRESULT CALLBACK OnD3D11CreateDevice(ID3D11Device* pd3dDevice, const DXGI_SURFAC
 	}
 
 	//static init
-	// TODO See if we can tweak here ...
-	V_RETURN(g_RGBDAdapter.OnD3D11CreateDevice(pd3dDevice, getRGBDSensor(), GlobalAppState::get().s_adapterWidth, GlobalAppState::get().s_adapterHeight)); 
-	V_RETURN(g_CudaDepthSensor.OnD3D11CreateDevice(pd3dDevice, &g_RGBDAdapter)); 
+	// 15769 getRGBDSensor() should have been init here, 
+	// i.e., MultiBinaryDumpReader.createFirstConnected called.
+	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiBinaryDumpReader){
+		std::cout << "Initializing CUDASensor and CUDAAdapter array" << std::endl;
+		// Let's do some sanity check:
+		auto multireader = dynamic_cast<MultiBinaryDumpReader*>(getRGBDSensor());
+		assert(multireader->getBinaryDumpReaders().size() <= MAX_SENSORS);
+		// Init the array of CUDASensor and CUDA adapter from array of RGBDSensor
+		for (size_t i = 0; i < multireader->getBinaryDumpReaders().size(); i++){
+			V_RETURN(g_RGBDAdapters[i].OnD3D11CreateDevice(pd3dDevice, &multireader->getBinaryDumpReaders()[i], GlobalAppState::get().s_adapterWidth, GlobalAppState::get().s_adapterHeight));
+			V_RETURN(g_CudaDepthSensors[i].OnD3D11CreateDevice(pd3dDevice, &g_RGBDAdapters[i]));
+		}
+	}
+	else {
+		V_RETURN(g_RGBDAdapter.OnD3D11CreateDevice(pd3dDevice, getRGBDSensor(), GlobalAppState::get().s_adapterWidth, GlobalAppState::get().s_adapterHeight));
+		V_RETURN(g_CudaDepthSensor.OnD3D11CreateDevice(pd3dDevice, &g_RGBDAdapter));
+	}
 
 	V_RETURN(DX11QuadDrawer::OnD3D11CreateDevice(pd3dDevice));
 	V_RETURN(DX11PhongLighting::OnD3D11CreateDevice(pd3dDevice));
@@ -608,6 +628,7 @@ void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 	DX11PhongLighting::OnD3D11DestroyDevice();
 	GlobalAppState::get().OnD3D11DestroyDevice();
 
+	// TODO Destory array properly ...
 	g_CudaDepthSensor.OnD3D11DestroyDevice();
 	g_RGBDAdapter.OnD3D11DestroyDevice();
 
@@ -671,86 +692,94 @@ void reconstruction_multi_dump(){
 	assert(GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiBinaryDumpReader);
 	assert(GlobalAppState::get().s_binaryDumpSensorUseTrajectory);
 
+	// XXX The info printed is only of the first sensor, can be misleading
 	std::cout << "[ frame " << g_RGBDAdapter.getFrameNumber() << " ] " << " [Free SDFBlocks " << g_sceneRep->getHeapFreeCount() << " ] " << std::endl;
 
-	mat4f transformation = mat4f::identity();
+	auto multireader = dynamic_cast<MultiBinaryDumpReader*>(getRGBDSensor());
+	for (size_t i = 0; i < multireader->getBinaryDumpReaders().size(); i++){
+		std::cout << "Sensor " << i << std::endl;
 
-	if (GlobalAppState::get().s_binaryDumpSensorUseTrajectory)
-	{
-		// The transformation is set here from the binary file directly. No need to run ICP below.
-		transformation = g_RGBDAdapter.getRigidTransform();
 
-		if (transformation[0] == -std::numeric_limits<float>::infinity()) {
-			std::cout << "INVALID FRAME" << std::endl;
+		mat4f transformation = mat4f::identity();
+
+		if (GlobalAppState::get().s_binaryDumpSensorUseTrajectory)
+		{
+			// The transformation is set here from the binary file directly. No need to run ICP below.
+			transformation = g_RGBDAdapters[i].getRigidTransform();
+
+			if (transformation[0] == -std::numeric_limits<float>::infinity()) {
+				std::cout << "INVALID FRAME" << std::endl;
+				return;
+			}
+		}
+
+		if (g_RGBDAdapters[i].getFrameNumber() > 1) {
+			mat4f renderTransform = g_sceneRep->getLastRigidTransform();
+			//if we have a pre-recorded trajectory; use it as an init (if specificed to do so)
+			if (GlobalAppState::get().s_binaryDumpSensorUseTrajectory
+				&& GlobalAppState::get().s_binaryDumpSensorUseTrajectoryOnlyInit) {
+				//deltaTransformEstimate = lastTransform.getInverse() * transformation;
+				mat4f deltaTransformEstimate = g_RGBDAdapters[i].getRigidTransform(-1).getInverse() * transformation;
+				renderTransform = renderTransform * deltaTransformEstimate;
+				g_sceneRep->setLastRigidTransformAndCompactify(renderTransform, g_CudaDepthSensors[i].getDepthCameraData());
+				//TODO if this is enabled there is a problem with the ray interval splatting
+			}
+
+			g_rayCast->render(g_sceneRep->getHashData(), g_sceneRep->getHashParams(), g_CudaDepthSensors[i].getDepthCameraData(), renderTransform);
+		}
+
+
+		if (GlobalAppState::getInstance().s_recordData) {
+			g_RGBDAdapters[i].recordTrajectory(transformation);
+		}
+
+		//
+		// 2. Perform Volumetric Integration with Voxel Hashing
+		//
+		if (transformation(0, 0) == -std::numeric_limits<float>::infinity()) {
+			std::cout << "!!! TRACKING LOST !!!" << std::endl;
+			GlobalAppState::get().s_reconstructionEnabled = false;
 			return;
 		}
-	}
 
-	if (g_RGBDAdapter.getFrameNumber() > 1) {
-		mat4f renderTransform = g_sceneRep->getLastRigidTransform();
-		//if we have a pre-recorded trajectory; use it as an init (if specificed to do so)
-		if (GlobalAppState::get().s_binaryDumpSensorUseTrajectory
-			&& GlobalAppState::get().s_binaryDumpSensorUseTrajectoryOnlyInit) {
-			//deltaTransformEstimate = lastTransform.getInverse() * transformation;
-			mat4f deltaTransformEstimate = g_RGBDAdapter.getRigidTransform(-1).getInverse() * transformation;
-			renderTransform = renderTransform * deltaTransformEstimate;
-			g_sceneRep->setLastRigidTransformAndCompactify(renderTransform, g_CudaDepthSensor.getDepthCameraData());
-			//TODO if this is enabled there is a problem with the ray interval splatting
+		if (GlobalAppState::get().s_streamingEnabled) {
+			PROFILE_CODE(profile.startTiming("Streaming"));
+			vec4f posWorld = transformation*GlobalAppState::getInstance().s_streamingPos; // trans laggs one frame *trans
+			vec3f p(posWorld.x, posWorld.y, posWorld.z);
+
+			g_chunkGrid->streamOutToCPUPass0GPU(p, GlobalAppState::get().s_streamingRadius, true, true);
+			g_chunkGrid->streamInToGPUPass1GPU(true);
+
+			//g_chunkGrid->debugCheckForDuplicates();
+			PROFILE_CODE(profile.stopTiming("Streaming"));
 		}
 
-		g_rayCast->render(g_sceneRep->getHashData(), g_sceneRep->getHashParams(), g_CudaDepthSensor.getDepthCameraData(), renderTransform);
-	}
+		// perform integration
+		if (GlobalAppState::get().s_integrationEnabled) {
+			PROFILE_CODE(profile.startTiming("Integration"));
 
+			g_sceneRep->integrate(transformation, g_CudaDepthSensors[i].getDepthCameraData(), g_CudaDepthSensors[i].getDepthCameraParams(), g_chunkGrid->getBitMaskGPU());
 
-	if (GlobalAppState::getInstance().s_recordData) {
-		g_RGBDAdapter.recordTrajectory(transformation);
-	}
+			//std::vector<const mat4f*> lastRigidTransforms;
+			//std::vector<const DepthCameraData*> depthCameraDatas;
+			//std::vector<const DepthCameraParams*> depthCameraParams;
+			//std::vector<unsigned int*> d_bitMasks;
 
-	//
-	// 2. Perform Volumetric Integration with Voxel Hashing
-	//
-	if (transformation(0, 0) == -std::numeric_limits<float>::infinity()) {
-		std::cout << "!!! TRACKING LOST !!!" << std::endl;
-		GlobalAppState::get().s_reconstructionEnabled = false;
-		return;
-	}
+			//lastRigidTransforms.push_back(&transformation);
+			//depthCameraDatas.push_back(&(g_CudaDepthSensor.getDepthCameraData()));
+			//depthCameraParams.push_back(&(g_CudaDepthSensor.getDepthCameraParams()));
+			//d_bitMasks.push_back(g_chunkGrid->getBitMaskGPU());
 
-	if (GlobalAppState::get().s_streamingEnabled) {
-		PROFILE_CODE(profile.startTiming("Streaming"));
-		vec4f posWorld = transformation*GlobalAppState::getInstance().s_streamingPos; // trans laggs one frame *trans
-		vec3f p(posWorld.x, posWorld.y, posWorld.z);
+			//g_sceneRep->integrate_multisensor(lastRigidTransforms, depthCameraDatas, depthCameraParams, d_bitMasks);
 
-		g_chunkGrid->streamOutToCPUPass0GPU(p, GlobalAppState::get().s_streamingRadius, true, true);
-		g_chunkGrid->streamInToGPUPass1GPU(true);
+			PROFILE_CODE(profile.stopTiming("Integration"));
+		}
+		else {
+			//compactification is required for the raycast splatting
+			g_sceneRep->setLastRigidTransformAndCompactify(transformation, g_CudaDepthSensor.getDepthCameraData());
+		}
 
-		//g_chunkGrid->debugCheckForDuplicates();
-		PROFILE_CODE(profile.stopTiming("Streaming"));
-	}
-
-	// perform integration
-	if (GlobalAppState::get().s_integrationEnabled) {
-		PROFILE_CODE(profile.startTiming("Integration"));
-
-		//g_sceneRep->integrate(transformation, g_CudaDepthSensor.getDepthCameraData(), g_CudaDepthSensor.getDepthCameraParams(), g_chunkGrid->getBitMaskGPU());
-
-		std::vector<const mat4f*> lastRigidTransforms;
-		std::vector<const DepthCameraData*> depthCameraDatas;
-		std::vector<const DepthCameraParams*> depthCameraParams;
-		std::vector<unsigned int*> d_bitMasks;
-
-		lastRigidTransforms.push_back(&transformation);
-		depthCameraDatas.push_back(&(g_CudaDepthSensor.getDepthCameraData()));
-		depthCameraParams.push_back(&(g_CudaDepthSensor.getDepthCameraParams()));
-		d_bitMasks.push_back(g_chunkGrid->getBitMaskGPU());
-
-		g_sceneRep->integrate_multisensor(lastRigidTransforms, depthCameraDatas, depthCameraParams, d_bitMasks);
-
-		PROFILE_CODE(profile.stopTiming("Integration"));
-	}
-	else {
-		//compactification is required for the raycast splatting
-		g_sceneRep->setLastRigidTransformAndCompactify(transformation, g_CudaDepthSensor.getDepthCameraData());
-	}
+	} //end for
 }
 
 /**
@@ -949,11 +978,24 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	pd3dImmediateContext->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
 	// if we have received any valid new depth data we may need to draw
-	HRESULT bGotDepth = g_CudaDepthSensor.process(pd3dImmediateContext);
-
-	// Filtering
-	g_CudaDepthSensor.setFiterDepthValues(GlobalAppState::get().s_depthFilter, GlobalAppState::get().s_depthSigmaD, GlobalAppState::get().s_depthSigmaR);
-	g_CudaDepthSensor.setFiterIntensityValues(GlobalAppState::get().s_colorFilter, GlobalAppState::get().s_colorSigmaD, GlobalAppState::get().s_colorSigmaR);
+	// 15769 Process the whole array of CudaSensor
+	HRESULT bGotDepth = S_OK;
+	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiBinaryDumpReader){
+		std::cout << "Processing CUDASensor and CUDAAdapter array in FrameRender" << std::endl;
+		auto multireader = dynamic_cast<MultiBinaryDumpReader*>(getRGBDSensor());
+		for (size_t i = 0; i < multireader->getBinaryDumpReaders().size(); i++){
+			bGotDepth |= g_CudaDepthSensors[i].process(pd3dImmediateContext);
+			// Filtering
+			g_CudaDepthSensors[i].setFiterDepthValues(GlobalAppState::get().s_depthFilter, GlobalAppState::get().s_depthSigmaD, GlobalAppState::get().s_depthSigmaR);
+			g_CudaDepthSensors[i].setFiterIntensityValues(GlobalAppState::get().s_colorFilter, GlobalAppState::get().s_colorSigmaD, GlobalAppState::get().s_colorSigmaR);
+		}
+	}
+	else {
+		bGotDepth = g_CudaDepthSensor.process(pd3dImmediateContext);
+		// Filtering
+		g_CudaDepthSensor.setFiterDepthValues(GlobalAppState::get().s_depthFilter, GlobalAppState::get().s_depthSigmaD, GlobalAppState::get().s_depthSigmaR);
+		g_CudaDepthSensor.setFiterIntensityValues(GlobalAppState::get().s_colorFilter, GlobalAppState::get().s_colorSigmaD, GlobalAppState::get().s_colorSigmaR);
+	}
 
 	HRESULT hr = S_OK;
 
