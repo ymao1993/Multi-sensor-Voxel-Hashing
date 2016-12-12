@@ -123,6 +123,7 @@ Err: ChunkToGlobalHashPass2Kernel
 		CloseHandle(mutex);
 		
 		```
+ + Github [rewrite history](http://stackoverflow.com/questions/4372435/how-can-i-rollback-a-github-repository-to-a-specific-commit)
 	
 	
 

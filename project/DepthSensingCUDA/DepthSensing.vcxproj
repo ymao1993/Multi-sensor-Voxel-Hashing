@@ -84,7 +84,7 @@
       <CodeGeneration>compute_30,sm_30</CodeGeneration>
       <MaxRegCount>62</MaxRegCount>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
-      <GPUDebugInfo>true</GPUDebugInfo>
+      <GPUDebugInfo>false</GPUDebugInfo>
       <GenerateLineInfo>false</GenerateLineInfo>
     </CudaCompile>
   </ItemDefinitionGroup>
@@ -198,6 +198,7 @@
     <ClCompile Include="Source\IntelSensor.cpp" />
     <ClCompile Include="Source\KinectOneSensor.cpp" />
     <ClCompile Include="Source\KinectSensor.cpp" />
+    <ClCompile Include="Source\MultiBinaryDumpReader.cpp" />
     <ClCompile Include="Source\NetworkSensor.cpp" />
     <ClCompile Include="Source\NetworkServer.cpp" />
     <ClCompile Include="Source\PrimeSenseSensor.cpp" />
@@ -261,6 +262,7 @@
     <ClInclude Include="Source\MarchingCubesSDFUtil.h" />
     <ClInclude Include="Source\MatrixConversion.h" />
     <ClInclude Include="Source\mLib.h" />
+    <ClInclude Include="Source\MultiBinaryDumpReader.h" />
     <ClInclude Include="Source\NetworkSensor.h" />
     <ClInclude Include="Source\NetworkServer.h" />
     <ClInclude Include="Source\PrimeSenseSensor.h" />

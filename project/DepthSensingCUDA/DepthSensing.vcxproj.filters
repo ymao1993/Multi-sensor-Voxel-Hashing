@@ -165,6 +165,9 @@
       <Filter>Sensors</Filter>
     </ClCompile>
     <ClCompile Include="Source\Profiler.cpp" />
+    <ClCompile Include="Source\MultiBinaryDumpReader.cpp">
+      <Filter>Sensors</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\CameraParams.h" />
@@ -326,6 +329,9 @@
       <Filter>Sensors</Filter>
     </ClInclude>
     <ClInclude Include="Source\Profiler.h" />
+    <ClInclude Include="Source\MultiBinaryDumpReader.h">
+      <Filter>Sensors</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\QuadDrawer.hlsl">

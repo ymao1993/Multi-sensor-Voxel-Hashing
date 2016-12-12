@@ -30,15 +30,18 @@ BinaryDumpReader::~BinaryDumpReader()
 }
 
 
+HRESULT BinaryDumpReader::createFirstConnected(){
+	std::string filename = GlobalAppState::get().s_binaryDumpSensorFile;
+	return this->createFirstConnected(filename);
+}
+
 /**
  * createFirstConnected
  * Load the binary data from disk, this includes color data, depth data and calibration matrices.
  */
-HRESULT BinaryDumpReader::createFirstConnected()
+HRESULT BinaryDumpReader::createFirstConnected(std::string filename)
 {
 	releaseData();
-
-	std::string filename = GlobalAppState::get().s_binaryDumpSensorFile;
 
 	std::cout << "Start loading binary dump" << std::endl;
 	//BinaryDataStreamZLibFile inputStream(filename, false);
