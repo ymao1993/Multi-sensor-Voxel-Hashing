@@ -692,7 +692,7 @@ void reconstruction_multi_dump(){
 	assert(GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiBinaryDumpReader);
 	assert(GlobalAppState::get().s_binaryDumpSensorUseTrajectory);
 
-	std::cout << "[ frame " << g_RGBDAdapter.getFrameNumber() << " ] " << " [Free SDFBlocks " << g_sceneRep->getHeapFreeCount() << " ] " << std::endl;
+	std::cout << "[ frame " << g_RGBDAdapters[0].getFrameNumber() << " ] " << " [Free SDFBlocks " << g_sceneRep->getHeapFreeCount() << " ] " << std::endl;
 
 	auto multireader = dynamic_cast<MultiBinaryDumpReader*>(getRGBDSensor());
 	for (size_t i = 0; i < multireader->getBinaryDumpReaders().size(); i++){
@@ -713,11 +713,12 @@ void reconstruction_multi_dump(){
 			}
 		}
 
-		if (g_RGBDAdapters[i].getFrameNumber() > 1) {
+		if (0 == i && g_RGBDAdapters[i].getFrameNumber() > 1) {
 			mat4f renderTransform = g_sceneRep->getLastRigidTransform();
 			//if we have a pre-recorded trajectory; use it as an init (if specificed to do so)
 			if (GlobalAppState::get().s_binaryDumpSensorUseTrajectory
 				&& GlobalAppState::get().s_binaryDumpSensorUseTrajectoryOnlyInit) {
+				assert(false);	// guess we should not land here
 				//deltaTransformEstimate = lastTransform.getInverse() * transformation;
 				mat4f deltaTransformEstimate = g_RGBDAdapters[i].getRigidTransform(-1).getInverse() * transformation;
 				renderTransform = renderTransform * deltaTransformEstimate;
@@ -776,6 +777,7 @@ void reconstruction_multi_dump(){
 		}
 		else {
 			//compactification is required for the raycast splatting
+			assert(false);	// guess we should not land here
 			g_sceneRep->setLastRigidTransformAndCompactify(transformation, g_CudaDepthSensor.getDepthCameraData());
 		}
 
@@ -981,7 +983,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	// 15769 Process the whole array of CudaSensor
 	HRESULT bGotDepth = S_OK;
 	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiBinaryDumpReader){
-		std::cout << "Processing CUDASensor and CUDAAdapter array in FrameRender" << std::endl;
+		// std::cout << "Processing CUDASensor and CUDAAdapter array in FrameRender" << std::endl;
 		auto multireader = dynamic_cast<MultiBinaryDumpReader*>(getRGBDSensor());
 		for (size_t i = 0; i < multireader->getBinaryDumpReaders().size(); i++){
 			bGotDepth |= g_CudaDepthSensors[i].process(pd3dImmediateContext);
