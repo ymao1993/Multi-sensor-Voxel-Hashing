@@ -286,15 +286,9 @@ private:
 	}
 
 	void integrateDepthMap(const DepthCameraData& depthCameraData, const DepthCameraParams& depthCameraParams) {
-		//Start Timing
-		profile.startTiming("integrateDepth");
 		if(GlobalAppState::get().s_timingsDetailledEnabled) { cutilSafeCall(cudaDeviceSynchronize()); m_timer.start(); }
-
 		integrateDepthMapCUDA(m_hashData, m_hashParams, depthCameraData, depthCameraParams);
-
-		// Stop Timing
 		if(GlobalAppState::get().s_timingsDetailledEnabled) { cutilSafeCall(cudaDeviceSynchronize()); m_timer.stop(); TimingLog::totalTimeIntegrate += m_timer.getElapsedTimeMS(); TimingLog::countTimeIntegrate++; }
-		profile.stopTiming("integrateDepth");
 	}
 
 	void garbageCollect(const DepthCameraData& depthCameraData) {

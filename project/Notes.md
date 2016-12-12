@@ -65,7 +65,7 @@ Err: ChunkToGlobalHashPass2Kernel
 
 + **CUDA**: The main funtionalities including ICP estimation and Voxel Hashing are implemented with CUDA. Some useful CUDA tutorials can be found at [CUDA C Programming Guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html), [CUDA C/C++ Basics](http://www.nvidia.com/docs/io/116711/sc11-cuda-c-basics.pdf) and [CUDA C Best Practice Guide](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html).
 
-+ **Nsight Visual Studio Edition** [User Guide](http://docs.nvidia.com/nsight-visual-studio-edition/5.2/Nsight_Visual_Studio_Edition_User_Guide.htm)
++ **Nsight Visual Studio Edition** The online user guid is [here](http://docs.nvidia.com/nsight-visual-studio-edition/5.2/Nsight_Visual_Studio_Edition_User_Guide.htm). One thing to notice is that WWDM will reset Nvidia display driver if the GPU is unresponsive for 2 seconds. This feature is called TDR. So one might want to turn it off via Nsight.
 
 + **DXUT**: DXUT is a "GLUT"-like framework for Direct3D 11.x Windows desktop applications, primarily for samples, demos, and prototypes. It is used in _DepthSensing.cpp_ to set up some application callbacks. A brief Introduction and sample code with DXUT can be found [here](https://code.msdn.microsoft.com/DXUT-Tutorial-Win32-Sample-fe15e440).
 

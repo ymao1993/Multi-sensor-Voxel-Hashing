@@ -41,8 +41,8 @@ s_SDFRayThresSampleDistFactor = 50.5f;	//(don't touch) s_SDFRayThresSampleDist =
 s_SDFRayThresDistFactor = 50.0f;		//(don't touch) s_SDFRayThresDist = s_SDFRayThresSampleDistFactor*s_rayIncrement;
 s_SDFUseGradients 		= false;		//analytic gradients for rendering
 
-s_binaryDumpSensorFile = "Dump/simple.sensor";
-// s_binaryDumpSensorFile = "Dump/nsh4224_dynamic.sensor";
+// s_binaryDumpSensorFile = "Dump/simple.sensor";
+s_binaryDumpSensorFile = "Dump/nsh4224_dynamic.sensor";
 // s_binaryDumpSensorFile = "Dump/nsh4224_static.sensor";
 // s_binaryDumpSensorFile = "Dump/nsh4224_dynamic_quick.sensor"
 

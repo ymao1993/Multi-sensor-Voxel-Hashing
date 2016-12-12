@@ -84,7 +84,7 @@
       <CodeGeneration>compute_30,sm_30</CodeGeneration>
       <MaxRegCount>62</MaxRegCount>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
-      <GPUDebugInfo>false</GPUDebugInfo>
+      <GPUDebugInfo>true</GPUDebugInfo>
       <GenerateLineInfo>false</GenerateLineInfo>
     </CudaCompile>
   </ItemDefinitionGroup>
