@@ -692,11 +692,11 @@ void reconstruction_multi_dump(){
 	assert(GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiBinaryDumpReader);
 	assert(GlobalAppState::get().s_binaryDumpSensorUseTrajectory);
 
-	// XXX The info printed is only of the first sensor, can be misleading
 	std::cout << "[ frame " << g_RGBDAdapter.getFrameNumber() << " ] " << " [Free SDFBlocks " << g_sceneRep->getHeapFreeCount() << " ] " << std::endl;
 
 	auto multireader = dynamic_cast<MultiBinaryDumpReader*>(getRGBDSensor());
 	for (size_t i = 0; i < multireader->getBinaryDumpReaders().size(); i++){
+
 		std::cout << "Sensor " << i << std::endl;
 
 
