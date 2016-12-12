@@ -38,9 +38,12 @@ HRESULT MultiBinaryDumpReader::createFirstConnected()
 		std::cout << s << std::endl;
 	}
 
-	for (auto filename : filelist){
+	for (size_t i = 0; i < filelist.size(); i++){
 		readers_.emplace_back();
-		readers_.back().createFirstConnected(filename);
+	}
+
+	for (size_t i = 0; i < filelist.size(); i++){
+		readers_[i].createFirstConnected(filelist[i]);
 	}
 
 	//// XXX

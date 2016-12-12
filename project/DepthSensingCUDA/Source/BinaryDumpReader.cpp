@@ -26,6 +26,7 @@ BinaryDumpReader::BinaryDumpReader()
 
 BinaryDumpReader::~BinaryDumpReader()
 {
+	std::cout << "[15769] Destructing BinaryDumpReader() ..." << std::endl;
 	releaseData();
 }
 

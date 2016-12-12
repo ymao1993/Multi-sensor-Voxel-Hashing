@@ -27,6 +27,7 @@ bool						g_bRenderHelp = true;
 #define MAX_SENSORS (10)
 CUDARGBDSensor g_CudaDepthSensors[MAX_SENSORS];
 CUDARGBDAdapter g_RGBDAdapters[MAX_SENSORS];
+size_t		g_numSensors = 1;
 
 CModelViewerCamera          g_Camera;               // A model viewing camera
 CUDARGBDSensor				&g_CudaDepthSensor = g_CudaDepthSensors[0];
@@ -552,6 +553,7 @@ HRESULT CALLBACK OnD3D11CreateDevice(ID3D11Device* pd3dDevice, const DXGI_SURFAC
 		// Let's do some sanity check:
 		auto multireader = dynamic_cast<MultiBinaryDumpReader*>(getRGBDSensor());
 		assert(multireader->getBinaryDumpReaders().size() <= MAX_SENSORS);
+		g_numSensors = multireader->getBinaryDumpReaders().size();
 		// Init the array of CUDASensor and CUDA adapter from array of RGBDSensor
 		for (size_t i = 0; i < multireader->getBinaryDumpReaders().size(); i++){
 			V_RETURN(g_RGBDAdapters[i].OnD3D11CreateDevice(pd3dDevice, &multireader->getBinaryDumpReaders()[i], GlobalAppState::get().s_adapterWidth, GlobalAppState::get().s_adapterHeight));
@@ -628,10 +630,20 @@ void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 	DX11PhongLighting::OnD3D11DestroyDevice();
 	GlobalAppState::get().OnD3D11DestroyDevice();
 
-	// TODO Destory array properly ...
-	g_CudaDepthSensor.OnD3D11DestroyDevice();
-	g_RGBDAdapter.OnD3D11DestroyDevice();
-
+	// 15769 Destory array properly ...
+	// Seems DXUT is destroyed after main(), we can't rely on getRGBDSensor() here ...
+	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiBinaryDumpReader){
+		std::cout << "Destroying CUDASensor and CUDAAdapter array" << std::endl;
+		/*auto multireader = dynamic_cast<MultiBinaryDumpReader*>(getRGBDSensor());*/
+		for (size_t i = 0; i < g_numSensors; i++){
+			g_CudaDepthSensors[i].OnD3D11DestroyDevice();
+			g_RGBDAdapters[i].OnD3D11DestroyDevice();
+		}
+	}
+	else {
+		g_CudaDepthSensor.OnD3D11DestroyDevice();
+		g_RGBDAdapter.OnD3D11DestroyDevice();
+	}
 	g_RGBDRenderer.OnD3D11DestroyDevice();
 	g_CustomRenderTarget.OnD3D11DestroyDevice();
 
@@ -692,13 +704,11 @@ void reconstruction_multi_dump(){
 	assert(GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiBinaryDumpReader);
 	assert(GlobalAppState::get().s_binaryDumpSensorUseTrajectory);
 
-	std::cout << "[ frame " << g_RGBDAdapters[0].getFrameNumber() << " ] " << " [Free SDFBlocks " << g_sceneRep->getHeapFreeCount() << " ] " << std::endl;
 
 	auto multireader = dynamic_cast<MultiBinaryDumpReader*>(getRGBDSensor());
 	for (size_t i = 0; i < multireader->getBinaryDumpReaders().size(); i++){
-
 		std::cout << "Sensor " << i << std::endl;
-
+		std::cout << "[ frame " << g_RGBDAdapters[i].getFrameNumber() << " ] " << " [Free SDFBlocks " << g_sceneRep->getHeapFreeCount() << " ] " << std::endl;
 
 		mat4f transformation = mat4f::identity();
 
@@ -1043,6 +1053,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 		const mat4f& renderIntrinsics = g_RGBDAdapter.getColorIntrinsics();
 
 		//always render, irrespective whether there is a new depth frame available
+		// TODO anything need to change?
 		g_CustomRenderTarget.Clear(pd3dImmediateContext);
 		g_CustomRenderTarget.Bind(pd3dImmediateContext);
 		g_RGBDRenderer.RenderDepthMap(pd3dImmediateContext, g_rayCast->getRayCastData().d_depth, g_rayCast->getRayCastData().d_colors, g_rayCast->getRayCastParams().m_width, g_rayCast->getRayCastParams().m_height, MatrixConversion::toMlib(g_rayCast->getRayCastParams().m_intrinsicsInverse), view, renderIntrinsics, g_CustomRenderTarget.getWidth(), g_CustomRenderTarget.getHeight(), GlobalAppState::get().s_renderingDepthDiscontinuityThresOffset, GlobalAppState::get().s_renderingDepthDiscontinuityThresLin);
