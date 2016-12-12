@@ -482,6 +482,10 @@ void CALLBACK OnKeyboard( UINT nChar, bool bKeyDown, bool bAltDown, void* pUserC
 		case 'P':
 			profile.generateTimingStats();
 			profile.printTimingStats();
+		case 'Q':
+			std::cout << "dumping profiling result...";
+			profile.dumpToFolderAll(GlobalAppState::get().s_profilerDumpFolder);
+			std::cout << "done." << std::endl;
 			break;
 		case VK_ESCAPE:
 			exit(0);
@@ -596,7 +600,7 @@ HRESULT CALLBACK OnD3D11CreateDevice(ID3D11Device* pd3dDevice, const DXGI_SURFAC
 	g_historgram = new CUDAHistrogramHashSDF(g_sceneRep->getHashParams());
 
 	g_chunkGrid = new CUDASceneRepChunkGrid(g_sceneRep, 
-		GlobalAppState::get().s_streamingVoxelExtents, 
+		GlobalAppState::get().s_streamingChunkExtents, 
 		GlobalAppState::get().s_streamingGridDimensions,
 		GlobalAppState::get().s_streamingMinGridPos,
 		GlobalAppState::get().s_streamingInitialChunkListSize,
@@ -804,10 +808,10 @@ void reconstruction()
 	}
 
 	//only if binary dump
-	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader) {
+	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader) {
 		std::cout << "[ frame " << g_RGBDAdapter.getFrameNumber() << " ] " << " [Free SDFBlocks " << g_sceneRep->getHeapFreeCount() << " ] " << std::endl;
 	}
-	
+
 	mat4f transformation = mat4f::identity();
 	if ((GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader) 
 		&& GlobalAppState::get().s_binaryDumpSensorUseTrajectory) {
@@ -821,9 +825,15 @@ void reconstruction()
 		}
 	}
 
+	//
+	// Perform ICP for tracking
+	// After this step, transformation matrix is set.
+	//
+#pragma region ignored
 
 	if (g_RGBDAdapter.getFrameNumber() > 1) {
 		mat4f renderTransform = g_sceneRep->getLastRigidTransform();
+		
 		//if we have a pre-recorded trajectory; use it as an init (if specificed to do so)
 		if ((GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader)
 			&& GlobalAppState::get().s_binaryDumpSensorUseTrajectory
@@ -836,103 +846,106 @@ void reconstruction()
 		}
 
 		g_rayCast->render(g_sceneRep->getHashData(), g_sceneRep->getHashParams(), g_CudaDepthSensor.getDepthCameraData(), renderTransform);
+		if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_NetworkSensor)
+		{
+			mat4f rigid_transform_from_tango = g_RGBDAdapter.getRigidTransform();
+			transformation = rigid_transform_from_tango;
+			if (transformation(0, 0) == -std::numeric_limits<float>::infinity()) {
+				std::cout << "Tracking lost in DepthSensing..." << std::endl;
+				transformation = rigid_transform_from_tango;
+			}
+		}
+		else
+		{
+			if (!GlobalAppState::get().s_trackingEnabled) {
+				transformation.setIdentity();
+			}
 
-		// 15-769: The whole bulk below is not used if we are reading transformation from files directly.
-		////
-		//// 1. Perform ICP for tracking
-		////
+			else if (
+				(GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader)
+				&& GlobalAppState::get().s_binaryDumpSensorUseTrajectory
+				&& !GlobalAppState::get().s_binaryDumpSensorUseTrajectoryOnlyInit) {
+				//actually: nothing to do here; transform is already set: just don't do icp and use pre-recorded trajectory
+			}
 
-		//if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_NetworkSensor)
-		//{
-		//	mat4f rigid_transform_from_tango = g_RGBDAdapter.getRigidTransform();
-		//	transformation = rigid_transform_from_tango;
-		//	if (transformation(0, 0) == -std::numeric_limits<float>::infinity()) {
-		//		std::cout << "Tracking lost in DepthSensing..." << std::endl;
-		//		transformation = rigid_transform_from_tango;
-		//	}
-		//}
-		//else
-		//{
-		//	//static ICPErrorLog errorLog;
-		//	if (!GlobalAppState::get().s_trackingEnabled) {
-		//		transformation.setIdentity();
-		//	}
-		//	else if (
-		//		(GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader)
-		//		&& GlobalAppState::get().s_binaryDumpSensorUseTrajectory
-		//		&& !GlobalAppState::get().s_binaryDumpSensorUseTrajectoryOnlyInit) {
-		//		//actually: nothing to do here; transform is already set: just don't do icp and use pre-recorded trajectory
-		//	} else {
-		//		mat4f lastTransform = g_sceneRep->getLastRigidTransform();
-		//		mat4f deltaTransformEstimate = mat4f::identity();
+			else {
+				mat4f lastTransform = g_sceneRep->getLastRigidTransform();
+				mat4f deltaTransformEstimate = mat4f::identity();
 
-		//		const bool useRGBDTracking = false;	//Depth vs RGBD
-		//		PROFILE_CODE(profile.startTiming("ICP Tracking"));
-		//		if (!useRGBDTracking) {
-		//			transformation = g_cameraTracking->applyCT(
-		//				g_CudaDepthSensor.getCameraSpacePositionsFloat4(), g_CudaDepthSensor.getNormalMapFloat4(), g_CudaDepthSensor.getColorMapFilteredFloat4(),
-		//				//g_rayCast->getRayCastData().d_depth4Transformed, g_CudaDepthSensor.getNormalMapNoRefinementFloat4(), g_CudaDepthSensor.getColorMapFilteredFloat4(),
-		//				g_rayCast->getRayCastData().d_depth4, g_rayCast->getRayCastData().d_normals, g_rayCast->getRayCastData().d_colors,
-		//				lastTransform,
-		//				GlobalCameraTrackingState::getInstance().s_maxInnerIter, GlobalCameraTrackingState::getInstance().s_maxOuterIter,
-		//				GlobalCameraTrackingState::getInstance().s_distThres,	 GlobalCameraTrackingState::getInstance().s_normalThres,
-		//				100.0f, 3.0f,
-		//				deltaTransformEstimate,
-		//				GlobalCameraTrackingState::getInstance().s_residualEarlyOut,
-		//				g_RGBDAdapter.getDepthIntrinsics(), g_CudaDepthSensor.getDepthCameraData(), 
-		//				NULL);
-		//		} else {
-		//			transformation = g_cameraTrackingRGBD->applyCT(
-		//				//g_rayCast->getRayCastData().d_depth4Transformed, g_CudaDepthSensor.getColorMapFilteredFloat4(),
-		//				g_CudaDepthSensor.getCameraSpacePositionsFloat4(), g_CudaDepthSensor.getNormalMapFloat4(), g_CudaDepthSensor.getColorMapFilteredFloat4(),
-		//				g_rayCast->getRayCastData().d_depth4, g_rayCast->getRayCastData().d_normals,  g_rayCast->getRayCastData().d_colors, //g_CudaDepthSensor.getColorMapFilteredLastFrameFloat4(), // g_rayCast->getRayCastData().d_colors,
-		//				lastTransform,
-		//				GlobalCameraTrackingState::getInstance().s_maxInnerIter, GlobalCameraTrackingState::getInstance().s_maxOuterIter,
-		//				GlobalCameraTrackingState::getInstance().s_distThres,	 GlobalCameraTrackingState::getInstance().s_normalThres,
-		//				GlobalCameraTrackingState::getInstance().s_colorGradientMin, GlobalCameraTrackingState::getInstance().s_colorThres,
-		//				100.0f, 3.0f,
-		//				deltaTransformEstimate,
-		//				GlobalCameraTrackingState::getInstance().s_weightsDepth,
-		//				GlobalCameraTrackingState::getInstance().s_weightsColor,
-		//				GlobalCameraTrackingState::getInstance().s_residualEarlyOut,
-		//				g_RGBDAdapter.getDepthIntrinsics(), g_CudaDepthSensor.getDepthCameraData(), 
-		//				NULL);
-		//		}
-		//		PROFILE_CODE(profile.stopTiming("ICP Tracking"));
-		//	}
-		//}
+				const bool useRGBDTracking = false;	//Depth vs RGBD
+				PROFILE_CODE(profile.startTiming("ICP Tracking", g_RGBDAdapter.getFrameNumber()));
+				if (!useRGBDTracking) {
+					transformation = g_cameraTracking->applyCT(
+						g_CudaDepthSensor.getCameraSpacePositionsFloat4(), g_CudaDepthSensor.getNormalMapFloat4(), g_CudaDepthSensor.getColorMapFilteredFloat4(),
+						//g_rayCast->getRayCastData().d_depth4Transformed, g_CudaDepthSensor.getNormalMapNoRefinementFloat4(), g_CudaDepthSensor.getColorMapFilteredFloat4(),
+						g_rayCast->getRayCastData().d_depth4, g_rayCast->getRayCastData().d_normals, g_rayCast->getRayCastData().d_colors,
+						lastTransform,
+						GlobalCameraTrackingState::getInstance().s_maxInnerIter, GlobalCameraTrackingState::getInstance().s_maxOuterIter,
+						GlobalCameraTrackingState::getInstance().s_distThres,	 GlobalCameraTrackingState::getInstance().s_normalThres,
+						100.0f, 3.0f,
+						deltaTransformEstimate,
+						GlobalCameraTrackingState::getInstance().s_residualEarlyOut,
+						g_RGBDAdapter.getDepthIntrinsics(), g_CudaDepthSensor.getDepthCameraData(), 
+						NULL);
+				} else {
+					transformation = g_cameraTrackingRGBD->applyCT(
+						//g_rayCast->getRayCastData().d_depth4Transformed, g_CudaDepthSensor.getColorMapFilteredFloat4(),
+						g_CudaDepthSensor.getCameraSpacePositionsFloat4(), g_CudaDepthSensor.getNormalMapFloat4(), g_CudaDepthSensor.getColorMapFilteredFloat4(),
+						g_rayCast->getRayCastData().d_depth4, g_rayCast->getRayCastData().d_normals,  g_rayCast->getRayCastData().d_colors, //g_CudaDepthSensor.getColorMapFilteredLastFrameFloat4(), // g_rayCast->getRayCastData().d_colors,
+						lastTransform,
+						GlobalCameraTrackingState::getInstance().s_maxInnerIter, GlobalCameraTrackingState::getInstance().s_maxOuterIter,
+						GlobalCameraTrackingState::getInstance().s_distThres,	 GlobalCameraTrackingState::getInstance().s_normalThres,
+						GlobalCameraTrackingState::getInstance().s_colorGradientMin, GlobalCameraTrackingState::getInstance().s_colorThres,
+						100.0f, 3.0f,
+						deltaTransformEstimate,
+						GlobalCameraTrackingState::getInstance().s_weightsDepth,
+						GlobalCameraTrackingState::getInstance().s_weightsColor,
+						GlobalCameraTrackingState::getInstance().s_residualEarlyOut,
+						g_RGBDAdapter.getDepthIntrinsics(), g_CudaDepthSensor.getDepthCameraData(), 
+						NULL);
+				}
+				PROFILE_CODE(profile.stopTiming("ICP Tracking", g_RGBDAdapter.getFrameNumber()));
+			}
+		}
 	}
+#pragma endregion
 
 	if (GlobalAppState::getInstance().s_recordData) {
 		g_RGBDAdapter.recordTrajectory(transformation);
 	}
 	
-	//
-	// 2. Perform Volumetric Integration with Voxel Hashing
-	//
 	if (transformation(0, 0) == -std::numeric_limits<float>::infinity()) {
 		std::cout << "!!! TRACKING LOST !!!" << std::endl;
 		GlobalAppState::get().s_reconstructionEnabled = false;
 		return;
 	}
 
+	//
+	// Streaming
+	// Bidirectional Host-Device Data Streaming 
+	//
+
 	if (GlobalAppState::get().s_streamingEnabled) {
-		PROFILE_CODE(profile.startTiming("Streaming"));
-		vec4f posWorld = transformation*GlobalAppState::getInstance().s_streamingPos; // trans laggs one frame *trans
+		PROFILE_CODE(profile.startTiming("Streaming", g_RGBDAdapter.getFrameNumber()));
+		vec4f posWorld = transformation*GlobalAppState::getInstance().s_streamingPos; // center of the active region
 		vec3f p(posWorld.x, posWorld.y, posWorld.z);
 
 		g_chunkGrid->streamOutToCPUPass0GPU(p, GlobalAppState::get().s_streamingRadius, true, true);
 		g_chunkGrid->streamInToGPUPass1GPU(true);
 
 		//g_chunkGrid->debugCheckForDuplicates();
-		PROFILE_CODE(profile.stopTiming("Streaming"));
+		PROFILE_CODE(profile.stopTiming("Streaming", g_RGBDAdapter.getFrameNumber()));
 	}
+
+	//
+	// Integration
+	//
 
 	// perform integration
 	if (GlobalAppState::get().s_integrationEnabled) {
-		PROFILE_CODE(profile.startTiming("Integration"));
-		
-		//g_sceneRep->integrate(transformation, g_CudaDepthSensor.getDepthCameraData(), g_CudaDepthSensor.getDepthCameraParams(), g_chunkGrid->getBitMaskGPU());
+		PROFILE_CODE(profile.startTiming("Integration", g_RGBDAdapter.getFrameNumber()));
+		g_sceneRep->integrate(transformation, g_CudaDepthSensor.getDepthCameraData(), g_CudaDepthSensor.getDepthCameraParams(), g_chunkGrid->getBitMaskGPU());
+		PROFILE_CODE(profile.stopTiming("Integration", g_RGBDAdapter.getFrameNumber()));
 		
 		std::vector<const mat4f*> lastRigidTransforms;
 		std::vector<const DepthCameraData*> depthCameraDatas;

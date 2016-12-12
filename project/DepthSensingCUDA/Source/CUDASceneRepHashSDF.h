@@ -12,18 +12,24 @@
 #include "TimingLog.h"
 #include "Profiler.h"
 
-extern "C" void resetCUDA(HashData& hashData, const HashParams& hashParams);
-extern "C" void resetHashBucketMutexCUDA(HashData& hashData, const HashParams& hashParams);
-extern "C" void allocCUDA(HashData& hashData, const HashParams& hashParams, const DepthCameraData& depthCameraData, const DepthCameraParams& depthCameraParams, const unsigned int* d_bitMask);
-extern "C" void fillDecisionArrayCUDA(HashData& hashData, const HashParams& hashParams, const DepthCameraData& depthCameraData);
-extern "C" void compactifyHashCUDA(HashData& hashData, const HashParams& hashParams);
-extern "C" void integrateDepthMapCUDA(HashData& hashData, const HashParams& hashParams, const DepthCameraData& depthCameraData, const DepthCameraParams& depthCameraParams);
+extern "C" void resetCUDA(VoxelHashData& voxelHashData, const HashParams& hashParams);
+extern "C" void resetHashBucketMutexCUDA(VoxelHashData& voxelHashData, const HashParams& hashParams);
+extern "C" void allocCUDA(VoxelHashData& voxelHashData, const HashParams& hashParams, const DepthCameraData& depthCameraData, const DepthCameraParams& depthCameraParams, const unsigned int* d_bitMask);
+extern "C" void fillDecisionArrayCUDA(VoxelHashData& voxelHashData, const HashParams& hashParams, const DepthCameraData& depthCameraData);
+extern "C" void compactifyHashCUDA(VoxelHashData& voxelHashData, const HashParams& hashParams);
+extern "C" void integrateDepthMapCUDA(VoxelHashData& voxelHashData, const HashParams& hashParams, const DepthCameraData& depthCameraData, const DepthCameraParams& depthCameraParams);
 extern "C" void bindInputDepthColorTextures(const DepthCameraData& depthCameraData);
 
-extern "C" void starveVoxelsKernelCUDA(HashData& hashData, const HashParams& hashParams);
-extern "C" void garbageCollectIdentifyCUDA(HashData& hashData, const HashParams& hashParams);
-extern "C" void garbageCollectFreeCUDA(HashData& hashData, const HashParams& hashParams);
+extern "C" void starveVoxelsKernelCUDA(VoxelHashData& voxelHashData, const HashParams& hashParams);
+extern "C" void garbageCollectIdentifyCUDA(VoxelHashData& voxelHashData, const HashParams& hashParams);
+extern "C" void garbageCollectFreeCUDA(VoxelHashData& voxelHashData, const HashParams& hashParams);
 
+/**
+ * CUDASceneRepHashSDF
+ * CUDASceneRepHashSDF manages the Voxel data and hash data on GPU, and
+ * implements the whole work flow of integration.
+ *
+ */
 class CUDASceneRepHashSDF
 {
 public:
@@ -49,7 +55,7 @@ public:
 		params.m_truncScale = gas.s_SDFTruncationScale;
 		params.m_integrationWeightSample = gas.s_SDFIntegrationWeightSample;
 		params.m_integrationWeightMax = gas.s_SDFIntegrationWeightMax;
-		params.m_streamingVoxelExtents = MatrixConversion::toCUDA(gas.s_streamingVoxelExtents);
+		params.m_streamingChunkExtents = MatrixConversion::toCUDA(gas.s_streamingChunkExtents);
 		params.m_streamingGridDimensions = MatrixConversion::toCUDA(gas.s_streamingGridDimensions);
 		params.m_streamingMinGridPos = MatrixConversion::toCUDA(gas.s_streamingMinGridPos);
 		params.m_streamingInitialChunkListSize = gas.s_streamingInitialChunkListSize;
@@ -134,7 +140,7 @@ public:
 	}
 
 
-	HashData& getHashData() {
+	VoxelHashData& getHashData() {
 		return m_hashData;
 	}
 
@@ -142,7 +148,7 @@ public:
 		return m_hashParams;
 	}
 
-
+#pragma region debugHash
 	//! debug only!
 	unsigned int getHeapFreeCount() {
 		unsigned int count;
@@ -256,6 +262,9 @@ public:
 
 		//getchar();
 	}
+
+#pragma endregion
+
 private:
 
 	void create(const HashParams& params) {
@@ -303,15 +312,9 @@ private:
 	}
 
 	void integrateDepthMap(const DepthCameraData& depthCameraData, const DepthCameraParams& depthCameraParams) {
-		//Start Timing
-		profile.startTiming("integrateDepth");
-		if (GlobalAppState::get().s_timingsDetailledEnabled) { cutilSafeCall(cudaDeviceSynchronize()); m_timer.start(); }
-
+		if(GlobalAppState::get().s_timingsDetailledEnabled) { cutilSafeCall(cudaDeviceSynchronize()); m_timer.start(); }
 		integrateDepthMapCUDA(m_hashData, m_hashParams, depthCameraData, depthCameraParams);
-
-		// Stop Timing
-		if (GlobalAppState::get().s_timingsDetailledEnabled) { cutilSafeCall(cudaDeviceSynchronize()); m_timer.stop(); TimingLog::totalTimeIntegrate += m_timer.getElapsedTimeMS(); TimingLog::countTimeIntegrate++; }
-		profile.stopTiming("integrateDepth");
+		if(GlobalAppState::get().s_timingsDetailledEnabled) { cutilSafeCall(cudaDeviceSynchronize()); m_timer.stop(); TimingLog::totalTimeIntegrate += m_timer.getElapsedTimeMS(); TimingLog::countTimeIntegrate++; }
 	}
 
 	void garbageCollect(const DepthCameraData& depthCameraData) {
@@ -331,7 +334,7 @@ private:
 
 
 	HashParams		m_hashParams;
-	HashData		m_hashData;
+	VoxelHashData		m_hashData;
 
 	CUDAScan		m_cudaScan;
 	unsigned int	m_numIntegratedFrames;	//used for garbage collect

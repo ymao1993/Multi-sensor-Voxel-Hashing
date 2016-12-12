@@ -12,17 +12,17 @@ __global__ void resetMarchingCubesKernel(MarchingCubesData data)
 	*data.d_numTriangles = 0;
 }
 
-__global__ void extractIsoSurfaceKernel(HashData hashData, RayCastData rayCastData, MarchingCubesData data) 
+__global__ void extractIsoSurfaceKernel(VoxelHashData voxelHashData, RayCastData rayCastData, MarchingCubesData data) 
 {
 	uint idx = blockIdx.x;
 
-	const HashEntry& entry = hashData.d_hash[idx];
+	const HashEntry& entry = voxelHashData.d_hash[idx];
 	if (entry.ptr != FREE_ENTRY) {
-		int3 pi_base = hashData.SDFBlockToVirtualVoxelPos(entry.pos);
+		int3 pi_base = voxelHashData.SDFBlockToVirtualVoxelPos(entry.pos);
 		int3 pi = pi_base + make_int3(threadIdx);
-		float3 worldPos = hashData.virtualVoxelPosToWorld(pi);
+		float3 worldPos = voxelHashData.virtualVoxelPosToWorld(pi);
 
-		data.extractIsoSurfaceAtPosition(worldPos, hashData, rayCastData);
+		data.extractIsoSurfaceAtPosition(worldPos, voxelHashData, rayCastData);
 	}
 }
 
@@ -39,12 +39,12 @@ extern "C" void resetMarchingCubesCUDA(MarchingCubesData& data)
 #endif
 }
 
-extern "C" void extractIsoSurfaceCUDA(const HashData& hashData, const RayCastData& rayCastData, const MarchingCubesParams& params, MarchingCubesData& data)
+extern "C" void extractIsoSurfaceCUDA(const VoxelHashData& voxelHashData, const RayCastData& rayCastData, const MarchingCubesParams& params, MarchingCubesData& data)
 {
 	const dim3 gridSize(params.m_hashNumBuckets*params.m_hashBucketSize, 1, 1);
 	const dim3 blockSize(params.m_sdfBlockSize, params.m_sdfBlockSize, params.m_sdfBlockSize);
 
-	extractIsoSurfaceKernel<<<gridSize, blockSize>>>(hashData, rayCastData, data);
+	extractIsoSurfaceKernel<<<gridSize, blockSize>>>(voxelHashData, rayCastData, data);
 
 #ifdef _DEBUG
 	cutilSafeCall(cudaDeviceSynchronize());

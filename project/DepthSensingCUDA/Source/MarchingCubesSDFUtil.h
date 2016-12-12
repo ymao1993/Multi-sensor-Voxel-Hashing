@@ -116,7 +116,7 @@ struct MarchingCubesData {
 //#else
 //	__host__
 //#endif
-	void extractIsoSurfaceAtPosition(const float3& worldPos, const HashData& hashData, const RayCastData& rayCastData)
+	void extractIsoSurfaceAtPosition(const float3& worldPos, const VoxelHashData& voxelHashData, const RayCastData& rayCastData)
 	{
 		const HashParams& hashParams = c_hashParams;
 		const MarchingCubesParams& params = *d_params;
@@ -130,14 +130,14 @@ struct MarchingCubesData {
 		const float P = hashParams.m_virtualVoxelSize/2.0f;
 		const float M = -P;
 
-		float3 p000 = worldPos+make_float3(M, M, M); float dist000; uchar3 color000; bool valid000 = rayCastData.trilinearInterpolationSimpleFastFast(hashData, p000, dist000, color000);
-		float3 p100 = worldPos+make_float3(P, M, M); float dist100; uchar3 color100; bool valid100 = rayCastData.trilinearInterpolationSimpleFastFast(hashData, p100, dist100, color100);
-		float3 p010 = worldPos+make_float3(M, P, M); float dist010; uchar3 color010; bool valid010 = rayCastData.trilinearInterpolationSimpleFastFast(hashData, p010, dist010, color010);
-		float3 p001 = worldPos+make_float3(M, M, P); float dist001; uchar3 color001; bool valid001 = rayCastData.trilinearInterpolationSimpleFastFast(hashData, p001, dist001, color001);
-		float3 p110 = worldPos+make_float3(P, P, M); float dist110; uchar3 color110; bool valid110 = rayCastData.trilinearInterpolationSimpleFastFast(hashData, p110, dist110, color110);
-		float3 p011 = worldPos+make_float3(M, P, P); float dist011; uchar3 color011; bool valid011 = rayCastData.trilinearInterpolationSimpleFastFast(hashData, p011, dist011, color011);
-		float3 p101 = worldPos+make_float3(P, M, P); float dist101; uchar3 color101; bool valid101 = rayCastData.trilinearInterpolationSimpleFastFast(hashData, p101, dist101, color101);
-		float3 p111 = worldPos+make_float3(P, P, P); float dist111; uchar3 color111; bool valid111 = rayCastData.trilinearInterpolationSimpleFastFast(hashData, p111, dist111, color111);
+		float3 p000 = worldPos+make_float3(M, M, M); float dist000; uchar3 color000; bool valid000 = rayCastData.trilinearInterpolationSimpleFastFast(voxelHashData, p000, dist000, color000);
+		float3 p100 = worldPos+make_float3(P, M, M); float dist100; uchar3 color100; bool valid100 = rayCastData.trilinearInterpolationSimpleFastFast(voxelHashData, p100, dist100, color100);
+		float3 p010 = worldPos+make_float3(M, P, M); float dist010; uchar3 color010; bool valid010 = rayCastData.trilinearInterpolationSimpleFastFast(voxelHashData, p010, dist010, color010);
+		float3 p001 = worldPos+make_float3(M, M, P); float dist001; uchar3 color001; bool valid001 = rayCastData.trilinearInterpolationSimpleFastFast(voxelHashData, p001, dist001, color001);
+		float3 p110 = worldPos+make_float3(P, P, M); float dist110; uchar3 color110; bool valid110 = rayCastData.trilinearInterpolationSimpleFastFast(voxelHashData, p110, dist110, color110);
+		float3 p011 = worldPos+make_float3(M, P, P); float dist011; uchar3 color011; bool valid011 = rayCastData.trilinearInterpolationSimpleFastFast(voxelHashData, p011, dist011, color011);
+		float3 p101 = worldPos+make_float3(P, M, P); float dist101; uchar3 color101; bool valid101 = rayCastData.trilinearInterpolationSimpleFastFast(voxelHashData, p101, dist101, color101);
+		float3 p111 = worldPos+make_float3(P, P, P); float dist111; uchar3 color111; bool valid111 = rayCastData.trilinearInterpolationSimpleFastFast(voxelHashData, p111, dist111, color111);
 
 		if(!valid000 || !valid100 || !valid010 || !valid001 || !valid110 || !valid011 || !valid101 || !valid111) return;
 
@@ -175,7 +175,7 @@ struct MarchingCubesData {
 
 		if(edgeTable[cubeindex] == 0 || edgeTable[cubeindex] == 255) return; // added by me edgeTable[cubeindex] == 255
 
-		Voxel v = hashData.getVoxel(worldPos);
+		Voxel v = voxelHashData.getVoxel(worldPos);
 
 		Vertex vertlist[12];
 		if(edgeTable[cubeindex] & 1)	vertlist[0]  = vertexInterp(isolevel, p010, p110, dist010, dist110, v.color, v.color);

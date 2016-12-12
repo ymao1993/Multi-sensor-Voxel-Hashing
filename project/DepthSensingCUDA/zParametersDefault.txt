@@ -88,16 +88,19 @@ s_marchingCubesMaxNumTriangles = 2500000; // max buffer size for marching cube
 
 //streaming parameters
 s_streamingEnabled = true;
-s_streamingVoxelExtents = 1.0f 1.0f 1.0f;
-s_streamingGridDimensions = 257 257 257; // dimensions have to be odd (number of samples)
+s_streamingChunkExtents = 1.0f 1.0f 1.0f;
+s_streamingGridDimensions = 257 257 257;		// dimensions have to be odd (number of samples)
 s_streamingMinGridPos = -128 -128 -128;
 s_streamingInitialChunkListSize = 2000;
-s_streamingRadius = 5.0f; // Depends on DepthMin and DepthMax 
-s_streamingPos = 0.0f 0.0f 3.0f 1.0f; // Depends on DepthMin and DepthMax
-s_streamingOutParts = 80;	// number of frames required to sweep through the entire hash
+s_streamingRadius = 5.0f;						// Radius of the active region, depending on DepthMin and DepthMax 
+s_streamingPos = 0.0f 0.0f 3.0f 1.0f;			//  Center of the active region in camera space, depending on DepthMin and DepthMax
+s_streamingOutParts = 80;						// number of frames required to sweep through the entire hash
 
 //recording of the input data
 s_recordData = true;				// master flag for data recording: enables or disables data recording
 s_recordCompression = false;		//if recoding is enabled; then compression is used (.sens instead of .sensor)
 s_recordDataFile = "./Dump/test.sensor";
 s_reconstructionEnabled = true;		//if recording is enabled; then the rigid transformation of the camera in each frame is also recorded.
+
+// profiler
+s_profilerDumpFolder = "./profiling_dump";   //dump folder output

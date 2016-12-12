@@ -15,7 +15,7 @@
 texture<float, cudaTextureType2D, cudaReadModeElementType> rayMinTextureRef;
 texture<float, cudaTextureType2D, cudaReadModeElementType> rayMaxTextureRef;
 
-__global__ void renderKernel(HashData hashData, RayCastData rayCastData, DepthCameraData cameraData) 
+__global__ void renderKernel(VoxelHashData voxelHashData, RayCastData rayCastData, DepthCameraData cameraData) 
 {
 	const unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
 	const unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
@@ -52,11 +52,11 @@ __global__ void renderKernel(HashData hashData, RayCastData rayCastData, DepthCa
 		//	printf("ERROR (%d,%d): [ %f, %f ]\n", x, y, minInterval, maxInterval);
 		//}
 
-		rayCastData.traverseCoarseGridSimpleSampleAll(hashData, cameraData, worldCamPos, worldDir, camDir, make_int3(x,y,1), minInterval, maxInterval);
+		rayCastData.traverseCoarseGridSimpleSampleAll(voxelHashData, cameraData, worldCamPos, worldDir, camDir, make_int3(x,y,1), minInterval, maxInterval);
 	} 
 }
 
-extern "C" void renderCS(const HashData& hashData, const RayCastData &rayCastData, const DepthCameraData &cameraData, const RayCastParams &rayCastParams) 
+extern "C" void renderCS(const VoxelHashData& voxelHashData, const RayCastData &rayCastData, const DepthCameraData &cameraData, const RayCastParams &rayCastParams) 
 {
 
 	const dim3 gridSize((rayCastParams.m_width + T_PER_BLOCK - 1)/T_PER_BLOCK, (rayCastParams.m_height + T_PER_BLOCK - 1)/T_PER_BLOCK);
@@ -66,7 +66,7 @@ extern "C" void renderCS(const HashData& hashData, const RayCastData &rayCastDat
 	cudaBindTextureToArray(rayMinTextureRef, rayCastData.d_rayIntervalSplatMinArray, channelDesc);
 	cudaBindTextureToArray(rayMaxTextureRef, rayCastData.d_rayIntervalSplatMaxArray, channelDesc);
 
-	renderKernel<<<gridSize, blockSize>>>(hashData, rayCastData, cameraData);
+	renderKernel<<<gridSize, blockSize>>>(voxelHashData, rayCastData, cameraData);
 
 #ifdef _DEBUG
 	cutilSafeCall(cudaDeviceSynchronize());
@@ -98,17 +98,17 @@ extern "C" void resetRayIntervalSplatCUDA(RayCastData& data, const RayCastParams
 #endif
 }
 
-__global__ void rayIntervalSplatKernel(HashData hashData, DepthCameraData depthCameraData, RayCastData rayCastData, DepthCameraData cameraData) 
+__global__ void rayIntervalSplatKernel(VoxelHashData voxelHashData, DepthCameraData depthCameraData, RayCastData rayCastData, DepthCameraData cameraData) 
 {
 	uint idx = blockIdx.x + blockIdx.y * NUM_GROUPS_X;
 
-	const HashEntry& entry = hashData.d_hashCompactified[idx];
+	const HashEntry& entry = voxelHashData.d_hashCompactified[idx];
 	if (entry.ptr != FREE_ENTRY) {
-		if (!hashData.isSDFBlockInCameraFrustumApprox(depthCameraData, entry.pos)) return;
+		if (!voxelHashData.isSDFBlockInCameraFrustumApprox(depthCameraData, entry.pos)) return;
 		const RayCastParams &params = c_rayCastParams;
 		const float4x4& viewMatrix = params.m_viewMatrix;
 
-		float3 worldCurrentVoxel = hashData.SDFBlockToWorld(entry.pos);
+		float3 worldCurrentVoxel = voxelHashData.SDFBlockToWorld(entry.pos);
 
 		float3 MINV = worldCurrentVoxel - c_hashParams.m_virtualVoxelSize / 2.0f;
 
@@ -166,13 +166,13 @@ __global__ void rayIntervalSplatKernel(HashData hashData, DepthCameraData depthC
 	}
 }
 
-extern "C" void rayIntervalSplatCUDA(const HashData& hashData, const DepthCameraData& cameraData, const RayCastData &rayCastData, const RayCastParams &rayCastParams) 
+extern "C" void rayIntervalSplatCUDA(const VoxelHashData& voxelHashData, const DepthCameraData& cameraData, const RayCastData &rayCastData, const RayCastParams &rayCastParams) 
 {
 
 	const dim3 gridSize(NUM_GROUPS_X, (rayCastParams.m_numOccupiedSDFBlocks + NUM_GROUPS_X - 1) / NUM_GROUPS_X, 1);
 	const dim3 blockSize(1, 1, 1);
 
-	rayIntervalSplatKernel<<<gridSize, blockSize>>>(hashData, cameraData, rayCastData, cameraData);
+	rayIntervalSplatKernel<<<gridSize, blockSize>>>(voxelHashData, cameraData, rayCastData, cameraData);
 
 #ifdef _DEBUG
 	cutilSafeCall(cudaDeviceSynchronize());

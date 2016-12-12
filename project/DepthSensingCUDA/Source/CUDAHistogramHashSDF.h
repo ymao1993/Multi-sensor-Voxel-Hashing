@@ -11,7 +11,7 @@
 #include "GlobalAppState.h"
 #include "TimingLog.h"
 
-extern "C" void computeHistogramCUDA(unsigned int* d_data, const HashData& hashData, const HashParams& hashParams);
+extern "C" void computeHistogramCUDA(unsigned int* d_data, const VoxelHashData& voxelHashData, const HashParams& hashParams);
 extern "C" void resetHistrogramCUDA(unsigned int* d_data, unsigned int numValues);
 
 class CUDAHistrogramHashSDF {
@@ -23,9 +23,9 @@ public:
 		destroy();
 	}
 
-	void computeHistrogram(const HashData& hashData, const HashParams& hashParams) {
+	void computeHistrogram(const VoxelHashData& voxelHashData, const HashParams& hashParams) {
 		resetHistrogramCUDA(d_historgram, hashParams.m_hashBucketSize + 1 + hashParams.m_hashMaxCollisionLinkedListSize + 1);
-		computeHistogramCUDA(d_historgram, hashData, hashParams);
+		computeHistogramCUDA(d_historgram, voxelHashData, hashParams);
 		printHistogram(hashParams);
 	}
 private:

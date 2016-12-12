@@ -7,12 +7,13 @@
 
 #include "BitArray.h"
 
-
+/**
+ * SDFBlock
+ * A block of SDF Voxels, which is the minimum unit hashing unit.
+ */
 struct SDFBlock : public BinaryDataSerialize<SDFBlock>
 {
 	Voxel data[SDF_BLOCK_SIZE*SDF_BLOCK_SIZE*SDF_BLOCK_SIZE];
-	//int data[2*SDF_BLOCK_SIZE*SDF_BLOCK_SIZE*SDF_BLOCK_SIZE];
-
 	static vec3ui delinearizeVoxelIndex(uint idx) {
 		uint x = idx % SDF_BLOCK_SIZE;
 		uint y = (idx % (SDF_BLOCK_SIZE * SDF_BLOCK_SIZE)) / SDF_BLOCK_SIZE;
@@ -21,7 +22,10 @@ struct SDFBlock : public BinaryDataSerialize<SDFBlock>
 	}
 };
 
-
+/**
+ * SDFBlockDesc
+ * SDFBlockDesc encodes the ptr to and position of the SDF block.
+ */
 class SDFBlockDesc : public BinaryDataSerialize<SDFBlockDesc> {
 public:
 
@@ -65,7 +69,20 @@ struct std::hash<SDFBlockDesc> : public std::unary_function<SDFBlockDesc, size_t
 };
 
 
-
+/**
+ * ChunkDesc
+ * We uniformly subdivide the world space into chunks (1m x 1m x 1m). GPU-to-CPU streaming is 
+ * performed on per SDF block basis. When SDF blocks and their hash entries are streamed from 
+ * CPU to GPU, we append them into the corresponding chunks. And later CPU-to-GPU streaming 
+ * operates on a per chunk basis, which means if a chunk is later identified for streaming, all
+ * SDF blocks inside the chunk will be streamed to GPU.
+ *
+ * The reason is that if CPU-to-GPU streaming is also performed on a per SDF block basis, then
+ * CPU would spend too much time to identify which SDF blocks to be streamed. Instead, we can just
+ * stream a chunk of blocks to GPU to utilize the high host-device bandwidth and GPU's ability
+ * to efficiently cull voxel blocks outside of the view frustum.
+ * 
+ */
 class ChunkDesc {
 public:
 	ChunkDesc(unsigned int initialChunkListSize) {
@@ -95,6 +112,10 @@ public:
 		m_SDFBlocks.clear();
 	}
 
+	/**
+	 * isStreamedOut
+	 * whether the chunk is streamed to CPU.
+	 */
 	bool isStreamedOut() const {
 		return m_SDFBlocks.size() > 0;
 	}
@@ -139,11 +160,11 @@ inline BinaryDataStream<BinaryDataBuffer, BinaryDataCompressor>& operator>>(Bina
 	return s;
 }
 
-extern "C" void integrateFromGlobalHashPass1CUDA(const HashParams& hashParams, const HashData& hashData, uint threadsPerPart, uint start, float radius, const float3& cameraPosition, uint* d_outputCounter, SDFBlockDesc* d_output);
-extern "C" void integrateFromGlobalHashPass2CUDA(const HashParams& hashParams, const HashData& hashData, uint threadsPerPart, const SDFBlockDesc* d_SDFBlockDescs, Voxel* d_output, unsigned int nSDFBlocks);
+extern "C" void integrateFromGlobalHashPass1CUDA(const HashParams& hashParams, const VoxelHashData& voxelHashData, uint threadsPerPart, uint start, float radius, const float3& cameraPosition, uint* d_outputCounter, SDFBlockDesc* d_output);
+extern "C" void integrateFromGlobalHashPass2CUDA(const HashParams& hashParams, const VoxelHashData& voxelHashData, uint threadsPerPart, const SDFBlockDesc* d_SDFBlockDescs, Voxel* d_output, unsigned int nSDFBlocks);
 
-extern "C" void chunkToGlobalHashPass1CUDA(const HashParams& hashParams, const HashData& hashData, uint numSDFBlockDescs, uint heapCountPrev, const SDFBlockDesc* d_SDFBlockDescs, const Voxel* d_SDFBlocks);
-extern "C" void chunkToGlobalHashPass2CUDA(const HashParams& hashParams, const HashData& hashData, uint numSDFBlockDescs, uint heapCountPrev, const SDFBlockDesc* d_SDFBlockDescs, const Voxel* d_SDFBlocks);
+extern "C" void chunkToGlobalHashPass1CUDA(const HashParams& hashParams, const VoxelHashData& voxelHashData, uint numSDFBlockDescs, uint heapCountPrev, const SDFBlockDesc* d_SDFBlockDescs, const Voxel* d_SDFBlocks);
+extern "C" void chunkToGlobalHashPass2CUDA(const HashParams& hashParams, const VoxelHashData& voxelHashData, uint numSDFBlockDescs, uint heapCountPrev, const SDFBlockDesc* d_SDFBlockDescs, const Voxel* d_SDFBlocks);
 
 
 LONG WINAPI StreamingFunc(LPVOID lParam);
@@ -181,7 +202,7 @@ public:
 	}
 
 	
-	const HashData& getHashData() const {
+	const VoxelHashData& getHashData() const {
 		return m_sceneRepHashSDF->getHashData();
 	}
 	const HashParams& getHashParams() const {
@@ -208,7 +229,7 @@ public:
 	void streamInToGPUPass0CPU(const vec3f& posCamera, float radius, bool useParts, bool multiThreaded = true);
 	void streamInToGPUPass1GPU(bool multiThreaded = true);
 
-	unsigned int integrateInHash(const vec3f& posCamera, float radius, bool useParts);
+	unsigned int gatherSDFBlocksForStreaming(const vec3f& posCamera, float radius, bool useParts);
 
 	void debugCheckForDuplicates() const;
 	void debugDump() const {
@@ -245,13 +266,9 @@ public:
 	}
 
 	void startMultiThreading() {
-
 		initializeCriticalSection();
-
 		s_terminateThread = false;
-
 		hStreamingThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)StreamingFunc, (LPVOID)this, 0, &dwStreamingThreadID);
-		 
 		if (hStreamingThread == NULL) {
 			std::cout << "Thread GPU-CPU could not be created" << std::endl;
 		}
@@ -260,18 +277,13 @@ public:
 	void stopMultiThreading() {
 
 		if (!s_terminateThread) {
-			//WaitForSingleObject(hEventOutProduce, INFINITE);
-			//WaitForSingleObject(hMutexOut, INFINITE);
-
-			//WaitForSingleObject(hEventInConsume, INFINITE);
-			//WaitForSingleObject(hMutexIn, INFINITE);
-
 
 			s_terminateThread = true;
 
+			// force all threads to finish their work 
+			// without waiting.
 			SetEvent(hEventOutProduce);
 			SetEvent(hEventOutConsume);
-
 			SetEvent(hEventInProduce);
 			SetEvent(hEventInConsume);
 
@@ -425,21 +437,6 @@ public:
 		std::cout << "Total number of Blocks on the CPU: " << nSDFBlocks << std::endl;
 	}
 
-	//void setPositionAndRadius(const vec3f& position, float radius, bool multiThreaded) {
-	//	if (multiThreaded) {
-	//		WaitForSingleObject(hEventSetTransformProduce, INFINITE);
-	//		WaitForSingleObject(hMutexSetTransform, INFINITE);
-	//	}
-
-	//	s_posCamera = position;
-	//	s_radius = radius;
-
-	//	if (multiThreaded) {
-	//		SetEvent(hEventSetTransformConsume);
-	//		ReleaseMutex(hMutexSetTransform);
-	//	}
-	//}
-
 #define HASH_GRID_VERSION 1
 
 	//! saves the entire state of the hash to disc (including the GPU part)
@@ -543,7 +540,7 @@ public:
 		return s_radius;
 	}
 
-	bool getTerminatedThread() const {
+	bool isThreadTerminated() const {
 		return s_terminateThread;
 	}
 
@@ -628,31 +625,26 @@ public:
 
 	// Mutex
 	void deleteCritialSection() {
-		CloseHandle(hMutexOut);
+		// CloseHandle(hMutexOut);
 		CloseHandle(hEventOutProduce);
 		CloseHandle(hEventOutConsume);
 
-		CloseHandle(hMutexIn);
+		// CloseHandle(hMutexIn);
 		CloseHandle(hEventInProduce);
 		CloseHandle(hEventInConsume);
-
-		CloseHandle(hMutexSetTransform);
-		CloseHandle(hEventSetTransformProduce);
-		CloseHandle(hEventSetTransformConsume);
 	}
 
 	void initializeCriticalSection() {
-		hMutexOut = CreateMutex(NULL, FALSE, NULL);
-		hEventOutProduce = CreateEvent(NULL, FALSE, TRUE, NULL);
-		hEventOutConsume = CreateEvent(NULL, FALSE, FALSE, NULL);
+		
+		// Windows API for synchronization: https://msdn.microsoft.com/en-us/library/windows/desktop/ms686211(v=vs.85).aspx
 
-		hMutexIn = CreateMutex(NULL, FALSE, NULL);
+		// hMutexOut = CreateMutex(NULL, FALSE, NULL);					// create and initialize a mutex not owned by any threads
+		hEventOutProduce = CreateEvent(NULL, FALSE, TRUE, NULL);	// auto-reset event initialized as signaled
+		hEventOutConsume = CreateEvent(NULL, FALSE, FALSE, NULL);	// auto-reset event initialized as un-signaled
+
+		// hMutexIn = CreateMutex(NULL, FALSE, NULL);
 		hEventInProduce = CreateEvent(NULL, FALSE, TRUE, NULL);
 		hEventInConsume = CreateEvent(NULL, FALSE, FALSE, NULL); //! has to be TRUE if stream out and in calls are split !!!
-
-		hMutexSetTransform = CreateMutex(NULL, FALSE, NULL);
-		hEventSetTransformProduce = CreateEvent(NULL, FALSE, TRUE, NULL);
-		hEventSetTransformConsume = CreateEvent(NULL, FALSE, FALSE, NULL);
 	}
 
 
@@ -671,15 +663,16 @@ public:
 
 	unsigned int m_maxNumberOfSDFBlocksIntegrateFromGlobalHash;
 
+	// GPU->CPU
+	SDFBlockDesc*	d_SDFBlockDescOutput;
+	SDFBlock*		d_SDFBlockOutput;
 	SDFBlockDesc*	h_SDFBlockDescOutput;
 	SDFBlock*		h_SDFBlockOutput;
-	
-	SDFBlockDesc*	d_SDFBlockDescOutput;
+
+	// CPU->GPU
 	SDFBlockDesc*	d_SDFBlockDescInput;
-	SDFBlock*		d_SDFBlockOutput;
 	SDFBlock*		d_SDFBlockInput;
 	unsigned int*	d_SDFBlockCounter;
-
 
 	unsigned int*	d_bitMask;
 
@@ -695,28 +688,38 @@ public:
 
 	unsigned int m_initialChunkDescListSize;	 // initial size for vectors in the ChunkDesc
 
-	std::vector<ChunkDesc*>	m_grid; // Grid data
-	BitArray<unsigned int>	m_bitMask;
+	std::vector<ChunkDesc*>	m_grid;				// grid of chunks
+	BitArray<unsigned int>	m_bitMask;			// binary occupancy mask
 
-	unsigned int m_currentPart;
-	unsigned int m_streamOutParts;
+	// s_streamingOutParts is the number of frames required to sweep through the entire hash.
+	// we don't want to copy the SDF blocks outside of the active region back to CPU at once.
+	// Because it would be too slow.
+	unsigned int m_currentPart;					
+	unsigned int m_streamOutParts;				
 
-	// Multi-threading
+	// We will be opening two threads on CPU.
+	// One thread is responsible for issuing kernel launches to GPU copy data to intermediate buffers.
+	// Another thread is responsible for process the result stored in the intermediate buffers.
 	HANDLE hStreamingThread;
-	DWORD dwStreamingThreadID;
-
-	// Mutex
-	HANDLE hMutexOut;
+	DWORD dwStreamingThreadID;		
+	
+	// Signaled when the SDF blocks and descriptors streamed to the intermediate buffer
+	// has been integrated(consumed) into chunks on CPU. GPU can write streamed to the
+	// intermediate buffers (h_SDFBlockDescOutput, h_SDFBlockOutput) now.
 	HANDLE hEventOutProduce;
+	
+	// Signaled when the SDF blocks and descriptors has been streamed(produced) to the 
+	// intermediate buffers (h_SDFBlockDescOutput, h_SDFBlockOutput) and is waiting to 
+	// be integrated(consumed) into the chunks on CPU.
 	HANDLE hEventOutConsume;
 
-	HANDLE hMutexIn;
+	// Signaled when the SDF blocks and descriptors streamed to the intermediate buffer
+	// on GPU has already been integrated into the hashing (consumed).
 	HANDLE hEventInProduce;
-	HANDLE hEventInConsume;
 
-	HANDLE hMutexSetTransform;
-	HANDLE hEventSetTransformProduce;
-	HANDLE hEventSetTransformConsume;
+	// Signaled when the SDF blocks and descriptors to be streamed in has been stored in
+	// the intermediate buffer on GPU.
+	HANDLE hEventInConsume;
 
 	Timer m_timer;
 	

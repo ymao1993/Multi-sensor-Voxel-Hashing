@@ -3,23 +3,23 @@
 
 #include "CUDASceneRepChunkGrid.h"
 
+/**
+ * StreamingFunc
+ * The helper thread will be responsible for
+ * consuming the intermediate buffer written by
+ * the GPU and constructing the intermediate 
+ * buffer that is to be sent to GPU.
+ */
 LONG WINAPI StreamingFunc(LPVOID lParam) 
 {
 	CUDASceneRepChunkGrid* chunkGrid = (CUDASceneRepChunkGrid*)lParam;
-
 	while (true)	{
-		//std::cout <<" Shouldnt run" << std::endl;
-		HRESULT hr = S_OK;
-
 		chunkGrid->streamOutToCPUPass1CPU(true);
 		chunkGrid->streamInToGPUPass0CPU(chunkGrid->getPosCamera(), chunkGrid->getRadius(), true);
-
-
-		if (chunkGrid->getTerminatedThread()) {
+		if (chunkGrid->isThreadTerminated()) {
 			return 0;
 		}
 	}
-
 	return 0;
 }
 
@@ -52,7 +52,6 @@ void CUDASceneRepChunkGrid::streamOutToCPUPass0GPU(const vec3f& posCamera, float
 {
 	if (multiThreaded) {
 		WaitForSingleObject(hEventOutProduce, INFINITE);
-		WaitForSingleObject(hMutexOut, INFINITE);
 	}
 
 	s_posCamera = posCamera;
@@ -71,23 +70,19 @@ void CUDASceneRepChunkGrid::streamOutToCPUPass0GPU(const vec3f& posCamera, float
 	unsigned int threadsPerPart = (hashNumBuckets*hashBucketSize + m_streamOutParts - 1) / m_streamOutParts;
 	if (!useParts) threadsPerPart = hashNumBuckets*hashBucketSize;
 
-	uint start = m_currentPart*threadsPerPart;
+	uint start = m_currentPart*threadsPerPart; // the start index of hash entry in the hash table
 	integrateFromGlobalHashPass1CUDA(m_sceneRepHashSDF->getHashParams(), m_sceneRepHashSDF->getHashData(), threadsPerPart, start, radius, MatrixConversion::toCUDA(posCamera), d_SDFBlockCounter, d_SDFBlockDescOutput);
 
 	const unsigned int nSDFBlockDescs = getSDFBlockCounter();
 
 	if (useParts) m_currentPart = (m_currentPart+1) % m_streamOutParts;
 
+
+	//-------------------------------------------------------
+	// Pass 2: Copy SDFBlocks to output buffer
+	//-------------------------------------------------------
 	if (nSDFBlockDescs != 0) {
-		//std::cout << "SDFBlocks streamed out: " << nSDFBlockDescs << std::endl;
-
-		//-------------------------------------------------------
-		// Pass 2: Copy SDFBlocks to output buffer
-		//-------------------------------------------------------
-
 		integrateFromGlobalHashPass2CUDA(m_sceneRepHashSDF->getHashParams(), m_sceneRepHashSDF->getHashData(), threadsPerPart, d_SDFBlockDescOutput, (Voxel*)d_SDFBlockOutput, nSDFBlockDescs);
-
-
 		MLIB_CUDA_SAFE_CALL(cudaMemcpy(h_SDFBlockDescOutput, d_SDFBlockDescOutput, sizeof(SDFBlockDesc)*nSDFBlockDescs, cudaMemcpyDeviceToHost));
 		MLIB_CUDA_SAFE_CALL(cudaMemcpy(h_SDFBlockOutput, d_SDFBlockOutput, sizeof(SDFBlock)*nSDFBlockDescs, cudaMemcpyDeviceToHost));
 	}
@@ -96,7 +91,6 @@ void CUDASceneRepChunkGrid::streamOutToCPUPass0GPU(const vec3f& posCamera, float
 
 	if (multiThreaded) {
 		SetEvent(hEventOutConsume);
-		ReleaseMutex(hMutexOut);
 	}
 }
 
@@ -104,7 +98,6 @@ void CUDASceneRepChunkGrid::streamOutToCPUPass1CPU(bool multiThreaded /*= true*/
 {
 	if (multiThreaded) {
 		WaitForSingleObject(hEventOutConsume, INFINITE);
-		WaitForSingleObject(hMutexOut, INFINITE);
 
 		if (s_terminateThread)	return;		//avoid duplicate insertions when stop multithreading is called
 	}
@@ -115,7 +108,6 @@ void CUDASceneRepChunkGrid::streamOutToCPUPass1CPU(bool multiThreaded /*= true*/
 
 	if (multiThreaded) {
 		SetEvent(hEventOutProduce);
-		ReleaseMutex(hMutexOut);
 	}
 }
 
@@ -206,18 +198,12 @@ void CUDASceneRepChunkGrid::streamInToGPUPass0CPU( const vec3f& posCamera, float
 {
 	if (multiThreaded) {
 		WaitForSingleObject(hEventInProduce, INFINITE);
-		WaitForSingleObject(hMutexIn, INFINITE);
 		if (s_terminateThread)	return;	//avoid duplicate insertions when stop multithreading is called
 	}
-
-	unsigned int nSDFBlockDescs = integrateInHash(posCamera, radius, useParts);
-
+	unsigned int nSDFBlockDescs = gatherSDFBlocksForStreaming(posCamera, radius, useParts);
 	s_nStreamdInBlocks = nSDFBlockDescs;
-
-
 	if (multiThreaded) {
 		SetEvent(hEventInConsume);
-		ReleaseMutex(hMutexIn);
 	}
 }
 
@@ -225,14 +211,12 @@ void CUDASceneRepChunkGrid::streamInToGPUPass1GPU( bool multiThreaded /*= true*/
 {
 	if (multiThreaded) {
 		WaitForSingleObject(hEventInConsume, INFINITE);
-		WaitForSingleObject(hMutexIn, INFINITE);
 	}
 
 	if (s_nStreamdInBlocks != 0) {
-		//std::cout << "SDFBlocks streamed in: " << s_nStreamdInBlocks << std::endl;
 
 		//-------------------------------------------------------
-		// Pass 1: Alloc memory for chunks
+		// Pass 1: Alloc memory for the sdf blocks and descriptors in the chunks
 		//-------------------------------------------------------
 
 		unsigned int heapFreeCountPrev = m_sceneRepHashSDF->getHeapFreeCount();
@@ -244,7 +228,7 @@ void CUDASceneRepChunkGrid::streamInToGPUPass1GPU( bool multiThreaded /*= true*/
 
 
 		//-------------------------------------------------------
-		// Pass 2: Initialize corresponding SDFBlocks
+		// Pass 2: Copy data to corresponding SDFBlocks
 		//-------------------------------------------------------
 
 		chunkToGlobalHashPass2CUDA(m_sceneRepHashSDF->getHashParams(), m_sceneRepHashSDF->getHashData(), s_nStreamdInBlocks, heapCountPrev, d_SDFBlockDescInput, (Voxel*)d_SDFBlockInput);
@@ -257,11 +241,15 @@ void CUDASceneRepChunkGrid::streamInToGPUPass1GPU( bool multiThreaded /*= true*/
 
 	if (multiThreaded) {
 		SetEvent(hEventInProduce);
-		ReleaseMutex(hMutexIn);
 	}
 }
 
-unsigned int CUDASceneRepChunkGrid::integrateInHash( const vec3f& posCamera, float radius, bool useParts )
+/**
+ * GatherSDFBlocksForStreaming
+ * Copy the chunks of sdf blocks and descriptors within the active sphere back into GPU.
+ * The results are stored in d_SDFBlockDescInput and d_SDFBlockInput
+ */
+unsigned int CUDASceneRepChunkGrid::gatherSDFBlocksForStreaming(const vec3f& posCamera, float radius, bool useParts)
 {
 	const unsigned int blockSize = sizeof(SDFBlock)/sizeof(int);
 	const unsigned int descSize = sizeof(SDFBlockDesc)/sizeof(int);
@@ -286,8 +274,8 @@ unsigned int CUDASceneRepChunkGrid::integrateInHash( const vec3f& posCamera, flo
 							throw MLIB_EXCEPTION("not enough memory allocated for intermediate GPU buffer");
 						}
 						// Copy data to GPU
-						MLIB_CUDA_SAFE_CALL(cudaMemcpy(d_SDFBlockDescInput, &(m_grid[index]->getSDFBlockDescs()[0]), sizeof(SDFBlockDesc)*nBlock, cudaMemcpyHostToDevice));
-						MLIB_CUDA_SAFE_CALL(cudaMemcpy(d_SDFBlockInput, &(m_grid[index]->getSDFBlocks()[0]), sizeof(SDFBlock)*nBlock, cudaMemcpyHostToDevice));
+						MLIB_CUDA_SAFE_CALL(cudaMemcpy(d_SDFBlockDescInput + nBlock, &(m_grid[index]->getSDFBlockDescs()[0]), sizeof(SDFBlockDesc)*nBlock, cudaMemcpyHostToDevice));
+						MLIB_CUDA_SAFE_CALL(cudaMemcpy(d_SDFBlockInput + nBlock, &(m_grid[index]->getSDFBlocks()[0]), sizeof(SDFBlock)*nBlock, cudaMemcpyHostToDevice));
 
 						// Remove data from CPU
 						m_grid[index]->clear();
@@ -295,7 +283,7 @@ unsigned int CUDASceneRepChunkGrid::integrateInHash( const vec3f& posCamera, flo
 
 						nSDFBlocks += nBlock;
 
-						if (useParts) return nSDFBlocks; // only in one chunk per frame
+						if (useParts) return nSDFBlocks; // only stream-in one chunk per frame
 					}
 				}
 			}
