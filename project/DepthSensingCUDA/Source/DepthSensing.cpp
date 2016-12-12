@@ -468,6 +468,10 @@ void CALLBACK OnKeyboard( UINT nChar, bool bKeyDown, bool bAltDown, void* pUserC
 		case 'P':
 			profile.generateTimingStats();
 			profile.printTimingStats();
+		case 'Q':
+			std::cout << "dumping profiling result...";
+			profile.dumpToFolderAll(GlobalAppState::get().s_profilerDumpFolder);
+			std::cout << "done." << std::endl;
 			break;
 		case VK_ESCAPE:
 			exit(0);
@@ -721,7 +725,7 @@ void reconstruction()
 				mat4f deltaTransformEstimate = mat4f::identity();
 
 				const bool useRGBDTracking = false;	//Depth vs RGBD
-				PROFILE_CODE(profile.startTiming("ICP Tracking"));
+				PROFILE_CODE(profile.startTiming("ICP Tracking", g_RGBDAdapter.getFrameNumber()));
 				if (!useRGBDTracking) {
 					transformation = g_cameraTracking->applyCT(
 						g_CudaDepthSensor.getCameraSpacePositionsFloat4(), g_CudaDepthSensor.getNormalMapFloat4(), g_CudaDepthSensor.getColorMapFilteredFloat4(),
@@ -752,7 +756,7 @@ void reconstruction()
 						g_RGBDAdapter.getDepthIntrinsics(), g_CudaDepthSensor.getDepthCameraData(), 
 						NULL);
 				}
-				PROFILE_CODE(profile.stopTiming("ICP Tracking"));
+				PROFILE_CODE(profile.stopTiming("ICP Tracking", g_RGBDAdapter.getFrameNumber()));
 			}
 		}
 	}
@@ -773,7 +777,7 @@ void reconstruction()
 	//
 
 	if (GlobalAppState::get().s_streamingEnabled) {
-		PROFILE_CODE(profile.startTiming("Streaming"));
+		PROFILE_CODE(profile.startTiming("Streaming", g_RGBDAdapter.getFrameNumber()));
 		vec4f posWorld = transformation*GlobalAppState::getInstance().s_streamingPos; // center of the active region
 		vec3f p(posWorld.x, posWorld.y, posWorld.z);
 
@@ -781,7 +785,7 @@ void reconstruction()
 		g_chunkGrid->streamInToGPUPass1GPU(true);
 
 		//g_chunkGrid->debugCheckForDuplicates();
-		PROFILE_CODE(profile.stopTiming("Streaming"));
+		PROFILE_CODE(profile.stopTiming("Streaming", g_RGBDAdapter.getFrameNumber()));
 	}
 
 	//
@@ -790,9 +794,9 @@ void reconstruction()
 
 	// perform integration
 	if (GlobalAppState::get().s_integrationEnabled) {
-		PROFILE_CODE(profile.startTiming("Integration"));
+		PROFILE_CODE(profile.startTiming("Integration", g_RGBDAdapter.getFrameNumber()));
 		g_sceneRep->integrate(transformation, g_CudaDepthSensor.getDepthCameraData(), g_CudaDepthSensor.getDepthCameraParams(), g_chunkGrid->getBitMaskGPU());
-		PROFILE_CODE(profile.stopTiming("Integration"));
+		PROFILE_CODE(profile.stopTiming("Integration", g_RGBDAdapter.getFrameNumber()));
 	} else {
 		//compactification is required for the raycast splatting
 		g_sceneRep->setLastRigidTransformAndCompactify(transformation, g_CudaDepthSensor.getDepthCameraData());

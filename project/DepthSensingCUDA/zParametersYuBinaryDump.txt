@@ -41,10 +41,10 @@ s_SDFRayThresSampleDistFactor = 50.5f;	//(don't touch) s_SDFRayThresSampleDist =
 s_SDFRayThresDistFactor = 50.0f;		//(don't touch) s_SDFRayThresDist = s_SDFRayThresSampleDistFactor*s_rayIncrement;
 s_SDFUseGradients 		= false;		//analytic gradients for rendering
 
-// s_binaryDumpSensorFile = "Dump/simple.sensor";
+s_binaryDumpSensorFile = "Dump/simple.sensor";
 // s_binaryDumpSensorFile = "Dump/nsh4224_dynamic.sensor";
 // s_binaryDumpSensorFile = "Dump/nsh4224_static.sensor";
-s_binaryDumpSensorFile = "Dump/nsh4224_dynamic_quick.sensor"
+// s_binaryDumpSensorFile = "Dump/nsh4224_dynamic_quick.sensor"
 
 s_binaryDumpSensorUseTrajectory = false;				    // use the recorded trajectory form the binary dump as the our rigid transformation estimation.
 s_binaryDumpSensorUseTrajectoryOnlyInit = false;	    // This option is valid only if the previous one is set true. If it is false, then for every frame we will be using the precomputed traj instead of performing ICP. Otherwise we will only be using the precomputed traj for the first frame.
@@ -104,3 +104,6 @@ s_recordData = true;				// master flag for data recording: enables or disables d
 s_recordCompression = false;		//if recoding is enabled; then compression is used (.sens instead of .sensor)
 	s_recordDataFile = "./Dump/test.sensor";
 s_reconstructionEnabled = true;		//if recording is enabled; then the rigid transformation of the camera in each frame is also recorded.
+
+// profiler
+s_profilerDumpFolder = "./profiling_dump";   //dump folder output

@@ -101,3 +101,6 @@ s_recordData = true;				// master flag for data recording: enables or disables d
 s_recordCompression = false;		//if recoding is enabled; then compression is used (.sens instead of .sensor)
 s_recordDataFile = "./Dump/test.sensor";
 s_reconstructionEnabled = true;		//if recording is enabled; then the rigid transformation of the camera in each frame is also recorded.
+
+// profiler
+s_profilerDumpFolder = "./profiling_dump";   //dump folder output

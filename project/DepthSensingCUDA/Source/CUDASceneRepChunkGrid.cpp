@@ -3,23 +3,23 @@
 
 #include "CUDASceneRepChunkGrid.h"
 
+/**
+ * StreamingFunc
+ * The helper thread will be responsible for
+ * consuming the intermediate buffer written by
+ * the GPU and constructing the intermediate 
+ * buffer that is to be sent to GPU.
+ */
 LONG WINAPI StreamingFunc(LPVOID lParam) 
 {
 	CUDASceneRepChunkGrid* chunkGrid = (CUDASceneRepChunkGrid*)lParam;
-
 	while (true)	{
-		//std::cout <<" Shouldnt run" << std::endl;
-		HRESULT hr = S_OK;
-
 		chunkGrid->streamOutToCPUPass1CPU(true);
 		chunkGrid->streamInToGPUPass0CPU(chunkGrid->getPosCamera(), chunkGrid->getRadius(), true);
-
-
-		if (chunkGrid->getTerminatedThread()) {
+		if (chunkGrid->isThreadTerminated()) {
 			return 0;
 		}
 	}
-
 	return 0;
 }
 
@@ -52,7 +52,6 @@ void CUDASceneRepChunkGrid::streamOutToCPUPass0GPU(const vec3f& posCamera, float
 {
 	if (multiThreaded) {
 		WaitForSingleObject(hEventOutProduce, INFINITE);
-		WaitForSingleObject(hMutexOut, INFINITE);
 	}
 
 	s_posCamera = posCamera;
@@ -92,7 +91,6 @@ void CUDASceneRepChunkGrid::streamOutToCPUPass0GPU(const vec3f& posCamera, float
 
 	if (multiThreaded) {
 		SetEvent(hEventOutConsume);
-		ReleaseMutex(hMutexOut);
 	}
 }
 
@@ -100,7 +98,6 @@ void CUDASceneRepChunkGrid::streamOutToCPUPass1CPU(bool multiThreaded /*= true*/
 {
 	if (multiThreaded) {
 		WaitForSingleObject(hEventOutConsume, INFINITE);
-		WaitForSingleObject(hMutexOut, INFINITE);
 
 		if (s_terminateThread)	return;		//avoid duplicate insertions when stop multithreading is called
 	}
@@ -111,7 +108,6 @@ void CUDASceneRepChunkGrid::streamOutToCPUPass1CPU(bool multiThreaded /*= true*/
 
 	if (multiThreaded) {
 		SetEvent(hEventOutProduce);
-		ReleaseMutex(hMutexOut);
 	}
 }
 
@@ -202,18 +198,12 @@ void CUDASceneRepChunkGrid::streamInToGPUPass0CPU( const vec3f& posCamera, float
 {
 	if (multiThreaded) {
 		WaitForSingleObject(hEventInProduce, INFINITE);
-		WaitForSingleObject(hMutexIn, INFINITE);
 		if (s_terminateThread)	return;	//avoid duplicate insertions when stop multithreading is called
 	}
-
 	unsigned int nSDFBlockDescs = gatherSDFBlocksForStreaming(posCamera, radius, useParts);
-
 	s_nStreamdInBlocks = nSDFBlockDescs;
-
-
 	if (multiThreaded) {
 		SetEvent(hEventInConsume);
-		ReleaseMutex(hMutexIn);
 	}
 }
 
@@ -221,11 +211,9 @@ void CUDASceneRepChunkGrid::streamInToGPUPass1GPU( bool multiThreaded /*= true*/
 {
 	if (multiThreaded) {
 		WaitForSingleObject(hEventInConsume, INFINITE);
-		WaitForSingleObject(hMutexIn, INFINITE);
 	}
 
 	if (s_nStreamdInBlocks != 0) {
-		//std::cout << "SDFBlocks streamed in: " << s_nStreamdInBlocks << std::endl;
 
 		//-------------------------------------------------------
 		// Pass 1: Alloc memory for the sdf blocks and descriptors in the chunks
@@ -253,7 +241,6 @@ void CUDASceneRepChunkGrid::streamInToGPUPass1GPU( bool multiThreaded /*= true*/
 
 	if (multiThreaded) {
 		SetEvent(hEventInProduce);
-		ReleaseMutex(hMutexIn);
 	}
 }
 

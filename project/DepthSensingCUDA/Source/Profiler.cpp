@@ -8,7 +8,7 @@
 
 using namespace std;
 
-void Profiler::startTiming(const string& token)
+void Profiler::startTiming(const string& token, int startFrame)
 {
 	cudaDeviceSynchronize();
 	if (timingLogs.find(token) == timingLogs.end()) {
@@ -22,10 +22,14 @@ void Profiler::startTiming(const string& token)
 	}
 
 	log.isTiming = true;
-	log.start = GetTickCount();
+	log.start_frames.push_back(startFrame);
+
+	LARGE_INTEGER li;
+	QueryPerformanceCounter(&li);
+	log.start = li.QuadPart;
 }
 
-void Profiler::stopTiming(const string& token)
+void Profiler::stopTiming(const string& token, int endFrame)
 {
 	cudaDeviceSynchronize();
 	while (true)
@@ -34,10 +38,16 @@ void Profiler::stopTiming(const string& token)
 		TimingLog& log = timingLogs[token];
 		if (!log.isTiming) break;
 
-		log.end = GetTickCount();
-		log.elapsed_time.push_back((double)(log.end - log.start));
-		log.start = log.end = 0;
+		LARGE_INTEGER li;
+		QueryPerformanceCounter(&li);
+		log.end = li.QuadPart;
+		QueryPerformanceFrequency(&li);
+		double frequency = double(li.QuadPart) / 1000.0;
+		double elapsed = double(log.end - log.start) / frequency;
+
+		log.elapsed_time.push_back(elapsed);
 		log.isTiming = false;
+		log.end_frames.push_back(endFrame);
 		return;
 	}
 
@@ -60,39 +70,127 @@ void Profiler::printTimingLog(const string& token)
 	}
 }
 
-bool Profiler::StatsEntryCompare(Profiler::StatsEntry& lhs, Profiler::StatsEntry& rhs) {
+bool Profiler::TimingStatsEntryCompare(Profiler::TimingStatsEntry& lhs, Profiler::TimingStatsEntry& rhs) {
 	return lhs.totalTime > rhs.totalTime;
 }
 
 void Profiler::generateTimingStats()
 {
-	entries.clear();
+	timingEntries.clear();
 	for (auto it = timingLogs.begin(); it != timingLogs.end(); it++)
 	{
-		StatsEntry entry(it->first);
+		TimingStatsEntry entry(it->first);
 		vector<double> &elapsed_time = it->second.elapsed_time;
 		for (int i = 0; i < elapsed_time.size(); i++)
 		{
 			entry.totalTime += elapsed_time[i];
 		}
 		entry.averageTime = ((double)entry.totalTime) / elapsed_time.size();
-		entries.push_back(entry);
+		timingEntries.push_back(entry);
 	}
-	std::sort(entries.begin(), entries.end(), StatsEntryCompare);
+	std::sort(timingEntries.begin(), timingEntries.end(), TimingStatsEntryCompare);
+	isTimingStatsGenerated = true;
 }
 
 void Profiler::printTimingStats()
 {
 	printf("=================Time Stats=================\n");
 	printf("id\tbucket name\ttotal time\taverage time\n");
-	for (int i = 0; i < entries.size(); i++)
-		printf("[%d]\t%s\t%.2lfms\t%.4lfms\n", i + 1, entries[i].token.c_str(), entries[i].totalTime, entries[i].averageTime);
+	for (int i = 0; i < timingEntries.size(); i++)
+		printf("[%d]\t%s\t%.2lfms\t%.4lfms\n", i + 1, timingEntries[i].token.c_str(), timingEntries[i].totalTime, timingEntries[i].averageTime);
 	printf("===================END======================\n");
 	return;
 }
 
-void Profiler::clear()
+void Profiler::recordDataPoints(const std::string& token, float y, float x /* = 0 */)
 {
-	entries.clear();
+	if (dataPointsLogs.find(token) == dataPointsLogs.end()) {
+		DataPointsLog log(token);
+		dataPointsLogs[token] = log;
+	}
+	dataPointsLogs[token].X.push_back(x);
+	dataPointsLogs[token].Y.push_back(x);
+}
+
+void Profiler::resetTiming()
+{
+	timingEntries.clear();
 	timingLogs.clear();
+	isTimingStatsGenerated = false;
+}
+
+void Profiler::resetDataPointsRecording()
+{
+	dataPointsLogs.clear();
+}
+
+void Profiler::resetAll()
+{
+	resetTiming();
+	resetDataPointsRecording();
+}
+
+void Profiler::dumpToFolderAll(const std::string& folderPath)
+{
+	dumpToFolderTimingLogs(folderPath);
+	dumpToFolderDataPoints(folderPath);
+}
+
+void Profiler::dumpToFolderTimingLogs(const std::string& folderPath)
+{
+	static const string prefix = "timing_";
+	ofstream file;
+
+	for (auto iter = timingLogs.begin(); iter != timingLogs.end(); iter++) {
+		const string& token = iter->first;
+		const vector<int>& startFrames = iter->second.start_frames;
+		const vector<int>& endFrames = iter->second.end_frames;
+		const vector<double>& elapsed_time = iter->second.elapsed_time;
+		string filePath = folderPath + "/" + prefix + token + ".txt";
+		file.open(filePath);
+		assert(file.is_open());
+		file << "# " << token << endl;
+		file << "# start_frame end_frame t" << endl;
+		for (int i = 0; i < elapsed_time.size(); i++) {
+			file << startFrames[i] << " " << endFrames[i] << " " << elapsed_time[i] << endl;
+		}
+		file.close();
+	}
+
+	if (!isTimingStatsGenerated) {
+		generateTimingStats();
+	}
+
+	file.open(folderPath + "/" + prefix + "stats.txt");
+	assert(file.is_open());
+	file << "# stats" << endl;
+	file << "# token average_time total_time" << endl;
+	for (int i = 0; i < timingEntries.size(); i++) {
+		const TimingStatsEntry& entry = timingEntries[i];
+		file << entry.token << " " << entry.averageTime << " " << entry.totalTime << endl;
+	}
+	file.close();
+	return;
+}
+
+void Profiler::dumpToFolderDataPoints(const std::string& folderPath)
+{
+	static const string prefix = "data_poinits_";
+	ofstream file;
+
+	for (auto iter = dataPointsLogs.begin(); iter != dataPointsLogs.end(); iter++) {
+		const string& token = iter->first;
+		const vector<double>& X = iter->second.X;
+		const vector<double>& Y = iter->second.Y;
+		string filePath = folderPath + "/" + prefix + token + ".txt";
+		file.open(filePath);
+		assert(file.is_open());
+		file << "# " << token << endl;
+		file << "# x y" << endl;
+		for (int i = 0; i < X.size(); i++) {
+			file << X[i] << " " << Y[i] << endl;
+		}
+		file.close();
+	}
+	return;
 }

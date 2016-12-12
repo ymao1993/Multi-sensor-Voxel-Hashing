@@ -266,13 +266,9 @@ public:
 	}
 
 	void startMultiThreading() {
-
 		initializeCriticalSection();
-
 		s_terminateThread = false;
-
 		hStreamingThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)StreamingFunc, (LPVOID)this, 0, &dwStreamingThreadID);
-		 
 		if (hStreamingThread == NULL) {
 			std::cout << "Thread GPU-CPU could not be created" << std::endl;
 		}
@@ -281,18 +277,13 @@ public:
 	void stopMultiThreading() {
 
 		if (!s_terminateThread) {
-			//WaitForSingleObject(hEventOutProduce, INFINITE);
-			//WaitForSingleObject(hMutexOut, INFINITE);
-
-			//WaitForSingleObject(hEventInConsume, INFINITE);
-			//WaitForSingleObject(hMutexIn, INFINITE);
-
 
 			s_terminateThread = true;
 
+			// force all threads to finish their work 
+			// without waiting.
 			SetEvent(hEventOutProduce);
 			SetEvent(hEventOutConsume);
-
 			SetEvent(hEventInProduce);
 			SetEvent(hEventInConsume);
 
@@ -549,7 +540,7 @@ public:
 		return s_radius;
 	}
 
-	bool getTerminatedThread() const {
+	bool isThreadTerminated() const {
 		return s_terminateThread;
 	}
 
@@ -634,31 +625,26 @@ public:
 
 	// Mutex
 	void deleteCritialSection() {
-		CloseHandle(hMutexOut);
+		// CloseHandle(hMutexOut);
 		CloseHandle(hEventOutProduce);
 		CloseHandle(hEventOutConsume);
 
-		CloseHandle(hMutexIn);
+		// CloseHandle(hMutexIn);
 		CloseHandle(hEventInProduce);
 		CloseHandle(hEventInConsume);
-
-		CloseHandle(hMutexSetTransform);
-		CloseHandle(hEventSetTransformProduce);
-		CloseHandle(hEventSetTransformConsume);
 	}
 
 	void initializeCriticalSection() {
-		hMutexOut = CreateMutex(NULL, FALSE, NULL);
-		hEventOutProduce = CreateEvent(NULL, FALSE, TRUE, NULL);
-		hEventOutConsume = CreateEvent(NULL, FALSE, FALSE, NULL);
+		
+		// Windows API for synchronization: https://msdn.microsoft.com/en-us/library/windows/desktop/ms686211(v=vs.85).aspx
 
-		hMutexIn = CreateMutex(NULL, FALSE, NULL);
+		// hMutexOut = CreateMutex(NULL, FALSE, NULL);					// create and initialize a mutex not owned by any threads
+		hEventOutProduce = CreateEvent(NULL, FALSE, TRUE, NULL);	// auto-reset event initialized as signaled
+		hEventOutConsume = CreateEvent(NULL, FALSE, FALSE, NULL);	// auto-reset event initialized as un-signaled
+
+		// hMutexIn = CreateMutex(NULL, FALSE, NULL);
 		hEventInProduce = CreateEvent(NULL, FALSE, TRUE, NULL);
 		hEventInConsume = CreateEvent(NULL, FALSE, FALSE, NULL); //! has to be TRUE if stream out and in calls are split !!!
-
-		hMutexSetTransform = CreateMutex(NULL, FALSE, NULL);
-		hEventSetTransformProduce = CreateEvent(NULL, FALSE, TRUE, NULL);
-		hEventSetTransformConsume = CreateEvent(NULL, FALSE, FALSE, NULL);
 	}
 
 
@@ -711,22 +697,29 @@ public:
 	unsigned int m_currentPart;					
 	unsigned int m_streamOutParts;				
 
-	// Multi-threading
+	// We will be opening two threads on CPU.
+	// One thread is responsible for issuing kernel launches to GPU copy data to intermediate buffers.
+	// Another thread is responsible for process the result stored in the intermediate buffers.
 	HANDLE hStreamingThread;
-	DWORD dwStreamingThreadID;
-
-	// Mutex
-	HANDLE hMutexOut;
+	DWORD dwStreamingThreadID;		
+	
+	// Signaled when the SDF blocks and descriptors streamed to the intermediate buffer
+	// has been integrated(consumed) into chunks on CPU. GPU can write streamed to the
+	// intermediate buffers (h_SDFBlockDescOutput, h_SDFBlockOutput) now.
 	HANDLE hEventOutProduce;
+	
+	// Signaled when the SDF blocks and descriptors has been streamed(produced) to the 
+	// intermediate buffers (h_SDFBlockDescOutput, h_SDFBlockOutput) and is waiting to 
+	// be integrated(consumed) into the chunks on CPU.
 	HANDLE hEventOutConsume;
 
-	HANDLE hMutexIn;
+	// Signaled when the SDF blocks and descriptors streamed to the intermediate buffer
+	// on GPU has already been integrated into the hashing (consumed).
 	HANDLE hEventInProduce;
-	HANDLE hEventInConsume;
 
-	HANDLE hMutexSetTransform;
-	HANDLE hEventSetTransformProduce;
-	HANDLE hEventSetTransformConsume;
+	// Signaled when the SDF blocks and descriptors to be streamed in has been stored in
+	// the intermediate buffer on GPU.
+	HANDLE hEventInConsume;
 
 	Timer m_timer;
 	

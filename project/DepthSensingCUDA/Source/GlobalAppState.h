@@ -96,8 +96,8 @@
 	X(bool, s_recordData) \
 	X(bool, s_recordCompression) \
 	X(std::string, s_recordDataFile) \
-	X(bool, s_reconstructionEnabled)
-
+	X(bool, s_reconstructionEnabled) \
+	X(std::string, s_profilerDumpFolder) \
 
 #ifndef VAR_NAME
 #define VAR_NAME(x) #x
