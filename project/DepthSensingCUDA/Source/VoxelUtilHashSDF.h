@@ -681,10 +681,6 @@ struct VoxelHashData {
 					if (prevValue != LOCK_ENTRY) {
 						const uint linBlockSize = SDF_BLOCK_SIZE * SDF_BLOCK_SIZE * SDF_BLOCK_SIZE;
 
-						if (curr.ptr / linBlockSize >= 262144) {
-							printf("err0\n");
-						}
-
 						appendHeap(curr.ptr / linBlockSize);
 						int nextIdx = (i + curr.offset) % (HASH_BUCKET_SIZE*c_hashParams.m_hashNumBuckets);
 						d_hash[i] = d_hash[nextIdx];
@@ -693,10 +689,6 @@ struct VoxelHashData {
 					}
 				} else {
 					const uint linBlockSize = SDF_BLOCK_SIZE * SDF_BLOCK_SIZE * SDF_BLOCK_SIZE;
-
-					if (curr.ptr / linBlockSize >= 262144) {
-						printf("err1\n");
-					}
 
 					appendHeap(curr.ptr / linBlockSize);
 					resetHashEntry(i);
