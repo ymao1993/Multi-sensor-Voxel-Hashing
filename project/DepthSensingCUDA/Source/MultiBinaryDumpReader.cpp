@@ -12,7 +12,7 @@ MultiBinaryDumpReader::MultiBinaryDumpReader()
 
 MultiBinaryDumpReader::~MultiBinaryDumpReader()
 {
-	// They will release themselves properly
+	// The BinaryDumpReaders will release themselves properly
 }
 
 
@@ -58,13 +58,9 @@ HRESULT MultiBinaryDumpReader::createFirstConnected()
 */
 HRESULT MultiBinaryDumpReader::processDepth()
 {
-	//// XXX
-	//std::cout << "Surrogate processDepth()" << std::endl;
-	//BinaryDumpReader::processDepth();
 	assert(false);	// should not call this
 
 	for (auto& r : readers_){
-		// TODO Not very clear what's done here.
 		r.processDepth();
 	}
 

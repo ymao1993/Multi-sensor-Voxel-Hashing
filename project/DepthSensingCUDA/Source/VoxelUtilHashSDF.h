@@ -499,11 +499,13 @@ struct VoxelHashData {
 	 */
 	__device__
 	void allocBlock(const int3& pos) {
-
-
+		//printf("Allocating block ...\n");
+		
 		uint h = computeHashPos(pos);	//hash bucket
 		uint hp = h * HASH_BUCKET_SIZE;	//hash position
 
+		// 15769 Find an empty entry (if exist) in the current hash bucket
+		// If an entry matches the sdf block, return
 		int firstEmpty = -1;
 		for (uint j = 0; j < HASH_BUCKET_SIZE; j++) {
 			uint i = j + hp;		
@@ -522,6 +524,8 @@ struct VoxelHashData {
 
 
 #ifdef HANDLE_COLLISIONS
+		// 15769 Traverse the linked list to check for matches
+		// This needs to be done even if the bucket contains empty entries, due to possible deleted slot
 		//updated variables as after the loop
 		const uint idxLastEntryInBucket = (h+1)*HASH_BUCKET_SIZE - 1;	//get last index of bucket
 		uint i = idxLastEntryInBucket;											//start with the last entry of the current bucket
@@ -544,8 +548,13 @@ struct VoxelHashData {
 
 			maxIter++;
 		}
+		if(g_MaxLoopIterCount == maxIter){
+			printf("[15769] Exceeding g_MaxLoopIterCount=%d, %s, %d\n", g_MaxLoopIterCount, __FILE__, __LINE__);
+		}
 #endif
-
+		// 15769 If we get here, it means the sdf block doesn't exist yet
+		// we need to allocate it.
+		// First, allocate it in the bucket if there's an empty entry
 		if (firstEmpty != -1) {	//if there is an empty entry and we haven't allocated the current entry before
 			//int prevValue = 0;
 			//InterlockedExchange(d_hashBucketMutex[h], LOCK_ENTRY, prevValue);	//lock the hash bucket
@@ -560,13 +569,14 @@ struct VoxelHashData {
 		}
 
 #ifdef HANDLE_COLLISIONS
+		// 15769 Otherwise, need to append to linked list
 		//if (i != idxLastEntryInBucket) return;
 		int offset = 0;
 		//linear search for free entry
-
+		
 		maxIter = 0;
 		#pragma  unroll 1 
-		while (maxIter < g_MaxLoopIterCount) {
+		while (maxIter < g_MaxLoopIterCount) {	// 15769 This doesn't make sense ... limit too small
 			offset++;
 			i = (idxLastEntryInBucket + offset) % (HASH_BUCKET_SIZE * c_hashParams.m_hashNumBuckets);	//go to next hash element
 			if ((offset % HASH_BUCKET_SIZE) == 0) continue;			//cannot insert into a last bucket element (would conflict with other linked lists)
@@ -599,7 +609,10 @@ struct VoxelHashData {
 
 			maxIter++;
 		} 
+		printf("[15769] Can't allocate within g_MaxLoopIterCount=%d, %s, %d\n", g_MaxLoopIterCount, __FILE__, __LINE__);
 #endif
+		printf("Failed to allocate block ... \n");
+
 	}
 
 	

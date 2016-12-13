@@ -5,15 +5,10 @@
 #include "stdafx.h"
 #include "BinaryDumpReader.h"
 
-/* XXX
-Ideally I should use RGBDSensor as base class.
-I use the first file as a surrogate to service some base class methods
-to avoid breaking the program everywhere.
-This will consumes extra resource.
-*/
+
 
 class MultiBinaryDumpReader :
-	public BinaryDumpReader
+	public RGBDSensor
 {
 public:
 	MultiBinaryDumpReader();
@@ -27,18 +22,17 @@ public:
 	HRESULT processDepth();
 
 	HRESULT processColor()	{
-		//everything done in process depth since order is relevant (color must be read first)
+		assert(false);	// should not call this
 		return S_OK;
 	}
 
 	std::string getSensorName() const {
-		// XXX
-		return BinaryDumpReader::getSensorName();
+		return "MultiBinaryDumpSensor";
 	}
 
 	mat4f getRigidTransform(int offset) const {
 		assert(false);	//should not call this
-		return BinaryDumpReader::getRigidTransform(offset);
+		return readers_[0].getRigidTransform(offset);
 	}
 
 	std::vector<BinaryDumpReader>& getBinaryDumpReaders(){
