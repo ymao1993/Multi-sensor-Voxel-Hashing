@@ -150,6 +150,28 @@ public:
 
 #pragma region debugHash
 	//! debug only!
+	void checkHeapValRange() {
+		unsigned int* heapCPU = new unsigned int[m_hashParams.m_numSDFBlocks];
+		MLIB_CUDA_SAFE_CALL(cudaMemcpy(heapCPU, m_hashData.d_heap, sizeof(unsigned int)*m_hashParams.m_numSDFBlocks, cudaMemcpyDeviceToHost));
+
+		bool isOk = true;
+		for (int i = 0; i < (int)m_hashParams.m_numSDFBlocks; i++) {
+			unsigned int blockIdx = heapCPU[i];
+			if (blockIdx >= (int)m_hashParams.m_numSDFBlocks) {
+				std::cout << "heap validity check failed: block idx at "<< i  << " is" << blockIdx << std::endl;
+				isOk = false;
+			}
+		}
+		if (isOk) {
+			std::cout << "heap validity check passed!" << std::endl;
+		}
+		else {
+			getchar();
+		}
+		free(heapCPU);
+	}
+
+	//! debug only!
 	unsigned int getHeapFreeCount() {
 		unsigned int count;
 		MLIB_CUDA_SAFE_CALL(cudaMemcpy(&count, m_hashData.d_heapCounter, sizeof(unsigned int), cudaMemcpyDeviceToHost));
@@ -259,8 +281,6 @@ public:
 
 		SAFE_DELETE_ARRAY(heapCPU);
 		SAFE_DELETE_ARRAY(hashCPU);
-
-		//getchar();
 	}
 
 #pragma endregion

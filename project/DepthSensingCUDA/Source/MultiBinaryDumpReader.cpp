@@ -1,7 +1,10 @@
 #include "stdafx.h"
-#include "MultiBinaryDumpReader.h"
 #include "GlobalAppState.h"
 #include "MatrixConversion.h"
+
+#include "MultiBinaryDumpReader.h"
+
+#ifdef BINARY_DUMP_READER
 
 #include <sstream>
 
@@ -70,3 +73,5 @@ HRESULT MultiBinaryDumpReader::processDepth()
 
 	return S_OK;
 }
+
+#endif

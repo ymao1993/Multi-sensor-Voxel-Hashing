@@ -38,7 +38,7 @@ typedef signed char schar;
 
 #define HANDLE_COLLISIONS
 #define SDF_BLOCK_SIZE 8
-#define HASH_BUCKET_SIZE 10
+#define HASH_BUCKET_SIZE 20
 
 #ifndef MINF
 #define MINF __int_as_float(0xff800000)
@@ -59,7 +59,7 @@ struct HashEntry
 {
 	int3	pos;		//hash position (lower left corner of SDFBlock))
 	int		ptr;		//pointer into heap to SDFBlock
-	uint	offset;		//offset for collisions
+	int		offset;		//offset relative to the list head (for collisions), use int because offset might be negative.
 	
 	__device__ void operator=(const struct HashEntry& e) {
 		((long long*)this)[0] = ((const long long*)&e)[0];
@@ -400,7 +400,7 @@ struct VoxelHashData {
 		}
 
 #ifdef HANDLE_COLLISIONS
-		const uint idxLastEntryInBucket = (h+1)*HASH_BUCKET_SIZE - 1;
+		const int idxLastEntryInBucket = (h+1)*HASH_BUCKET_SIZE - 1;
 		int i = idxLastEntryInBucket;	//start with the last entry of the current bucket
 		HashEntry curr;
 		//traverse list until end: memorize idx at list end and memorize offset from last element of bucket to list end
@@ -445,7 +445,7 @@ struct VoxelHashData {
 		unsigned int listLen = 0;
 
 #ifdef HANDLE_COLLISIONS
-		const uint idxLastEntryInBucket = (bucketID+1)*HASH_BUCKET_SIZE - 1;
+		const int idxLastEntryInBucket = (bucketID+1)*HASH_BUCKET_SIZE - 1;
 		unsigned int i = idxLastEntryInBucket;	//start with the last entry of the current bucket
 		//int offset = 0;
 		HashEntry curr;	curr.offset = 0;
@@ -489,6 +489,10 @@ struct VoxelHashData {
 	 */
 	__device__
 	void appendHeap(uint ptr) {
+		if (ptr >= 262144) {
+			printf("illegal appendHeap operation, ptr=%d\n", ptr);
+		}
+
 		uint addr = atomicAdd(&d_heapCounter[0], 1);
 		d_heap[addr+1] = ptr;
 	}
@@ -523,8 +527,8 @@ struct VoxelHashData {
 
 #ifdef HANDLE_COLLISIONS
 		//updated variables as after the loop
-		const uint idxLastEntryInBucket = (h+1)*HASH_BUCKET_SIZE - 1;	//get last index of bucket
-		uint i = idxLastEntryInBucket;											//start with the last entry of the current bucket
+		const int idxLastEntryInBucket = (h+1)*HASH_BUCKET_SIZE - 1;	//get last index of bucket
+		int i = idxLastEntryInBucket;											//start with the last entry of the current bucket
 		HashEntry curr;	curr.offset = 0;
 
 		unsigned int maxIter = 0;
@@ -625,36 +629,29 @@ struct VoxelHashData {
 
 #ifdef HANDLE_COLLISIONS
 		//updated variables as after the loop
-		const uint idxLastEntryInBucket = (h+1)*HASH_BUCKET_SIZE - 1;			//get last index of bucket
+		const int idxLastEntryInBucket = (h+1)*HASH_BUCKET_SIZE - 1;			//get last index of bucket
 		unsigned int maxIter = 0;
 		uint g_MaxLoopIterCount = c_hashParams.m_hashMaxCollisionLinkedListSize;
 
 		int offset = 0;
-		#pragma  unroll 1 
-		while (maxIter < g_MaxLoopIterCount) {													//linear search for free entry
+#pragma  unroll 1 
+		while (maxIter < g_MaxLoopIterCount) {																//linear search for free entry
 			offset++;
-			uint i = (idxLastEntryInBucket + offset) % (HASH_BUCKET_SIZE * c_hashParams.m_hashNumBuckets);	//go to next hash element
-			if ((offset % HASH_BUCKET_SIZE) == 0) continue;										//cannot insert into a last bucket element (would conflict with other linked lists
-			int prevWeight = 0;
-			uint* d_hashUI = (uint*)d_hash;
-			prevWeight = atomicCAS(&d_hashUI[3*idxLastEntryInBucket+1], (uint)FREE_ENTRY, (uint)LOCK_ENTRY);
-			if (prevWeight == FREE_ENTRY) {														//if free entry found set prev->next = curr & curr->next = prev->next
-				
-				HashEntry lastEntryInBucket = d_hash[idxLastEntryInBucket];						//get prev (= lastEntry in Bucket)
-
-				int newOffsetPrev = (offset << 16) | (lastEntryInBucket.pos.z & 0x0000ffff);	//prev->next = curr (maintain old z-pos)
-				int oldOffsetPrev = 0;
-				oldOffsetPrev = atomicExch(&d_hashUI[3*idxLastEntryInBucket+1], newOffsetPrev);
-				entry.offset = oldOffsetPrev >> 16;												//remove prev z-pos from old offset
-
+			int i = (idxLastEntryInBucket + offset) % (HASH_BUCKET_SIZE * c_hashParams.m_hashNumBuckets);	//go to next hash element
+			if ((offset % HASH_BUCKET_SIZE) == 0) continue;													//cannot insert into a last bucket element (would conflict with other linked lists
+			offset = i - idxLastEntryInBucket;																//re-compute offset (it might be negative)
+			int prevPtr = atomicCAS(&d_hash[i].ptr, FREE_ENTRY, LOCK_ENTRY);
+			if (prevPtr == FREE_ENTRY) {																	//if free entry found set prev->next = curr & curr->next = prev->next
+				int oldOffsetPrev = atomicExch(&d_hash[idxLastEntryInBucket].offset, offset);				//tmp = prev->next; prev->next = curr;
+				entry.offset = oldOffsetPrev;																//curr->next = tmp;
 				d_hash[i] = entry;
 				return true;
 			}
-
 			maxIter++;
-		} 
-#endif
-
+		}
+#endif 
+		// With proper g_MaxLoopIterCount, hash size, this should never happen!
+		printf("insert failed!\n");
 		return false;
 	}
 	
@@ -683,6 +680,11 @@ struct VoxelHashData {
 					if (prevValue == LOCK_ENTRY)	return false;
 					if (prevValue != LOCK_ENTRY) {
 						const uint linBlockSize = SDF_BLOCK_SIZE * SDF_BLOCK_SIZE * SDF_BLOCK_SIZE;
+
+						if (curr.ptr / linBlockSize >= 262144) {
+							printf("err0\n");
+						}
+
 						appendHeap(curr.ptr / linBlockSize);
 						int nextIdx = (i + curr.offset) % (HASH_BUCKET_SIZE*c_hashParams.m_hashNumBuckets);
 						d_hash[i] = d_hash[nextIdx];
@@ -691,6 +693,11 @@ struct VoxelHashData {
 					}
 				} else {
 					const uint linBlockSize = SDF_BLOCK_SIZE * SDF_BLOCK_SIZE * SDF_BLOCK_SIZE;
+
+					if (curr.ptr / linBlockSize >= 262144) {
+						printf("err1\n");
+					}
+
 					appendHeap(curr.ptr / linBlockSize);
 					resetHashEntry(i);
 					return true;
@@ -738,6 +745,82 @@ struct VoxelHashData {
 #endif	// HANDLE_COLLSISION
 		return false;
 	}
+
+
+	/**
+	* deleteHashEntry
+	* delete hash entry without realeasing any heap memory, used by streaming.
+	*/
+	__device__
+		bool deleteHashEntry(const int3& sdfBlock) {
+		uint h = computeHashPos(sdfBlock);	//hash bucket
+		uint hp = h * HASH_BUCKET_SIZE;		//hash position
+
+		for (uint j = 0; j < HASH_BUCKET_SIZE; j++) {
+			uint i = j + hp;
+			const HashEntry& curr = d_hash[i];
+			if (curr.pos.x == sdfBlock.x && curr.pos.y == sdfBlock.y && curr.pos.z == sdfBlock.z && curr.ptr != FREE_ENTRY) {
+#ifndef HANDLE_COLLISIONS
+				resetHashEntry(i);
+				return true;
+#endif
+#ifdef HANDLE_COLLISIONS
+				if (curr.offset != 0) {	//if there was a pointer set it to the next list element
+					int prevValue = atomicExch(&d_hashBucketMutex[h], LOCK_ENTRY);
+					if (prevValue == LOCK_ENTRY)	return false;
+					if (prevValue != LOCK_ENTRY) {
+						int nextIdx = (i + curr.offset) % (HASH_BUCKET_SIZE*c_hashParams.m_hashNumBuckets);
+						d_hash[i] = d_hash[nextIdx];
+						resetHashEntry(nextIdx);
+						return true;
+					}
+				}
+				else {
+					resetHashEntry(i);
+					return true;
+				}
+#endif	//HANDLE_COLLSISION
+			}
+		}
+#ifdef HANDLE_COLLISIONS
+		const uint idxLastEntryInBucket = (h + 1)*HASH_BUCKET_SIZE - 1;
+		int i = idxLastEntryInBucket;
+		HashEntry curr;
+		curr = d_hash[i];
+		int prevIdx = i;
+		i = idxLastEntryInBucket + curr.offset;							//go to next element in the list
+		i %= (HASH_BUCKET_SIZE * c_hashParams.m_hashNumBuckets);	//check for overflow
+
+		unsigned int maxIter = 0;
+		uint g_MaxLoopIterCount = c_hashParams.m_hashMaxCollisionLinkedListSize;
+
+#pragma  unroll 1 
+		while (maxIter < g_MaxLoopIterCount) {
+			curr = d_hash[i];
+			//found that dude that we need/want to delete
+			if (curr.pos.x == sdfBlock.x && curr.pos.y == sdfBlock.y && curr.pos.z == sdfBlock.z && curr.ptr != FREE_ENTRY) {
+				int prevValue = atomicExch(&d_hashBucketMutex[h], LOCK_ENTRY);
+				if (prevValue == LOCK_ENTRY)	return false;
+				if (prevValue != LOCK_ENTRY) {
+					resetHashEntry(i);
+					d_hash[prevIdx].offset = curr.offset;
+					return true;
+				}
+			}
+
+			if (curr.offset == 0) {	//we have found the end of the list
+				return false;	//should actually never happen because we need to find that guy before
+			}
+			prevIdx = i;
+			i = idxLastEntryInBucket + curr.offset;		//go to next element in the list
+			i %= (HASH_BUCKET_SIZE * c_hashParams.m_hashNumBuckets);	//check for overflow
+
+			maxIter++;
+		}
+#endif	// HANDLE_COLLSISION
+		return false;
+	}
+
 
 #endif	//CUDACC
 
