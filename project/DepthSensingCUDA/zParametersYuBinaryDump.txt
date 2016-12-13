@@ -1,5 +1,5 @@
 // 0=Kinect; 1=PrimeSense; 2=KinectOne; 3=BinaryDumpReader; 4=NetworkSensor; 5=IntelSensor; 6=RealSense; 7=StructureSensor; 8=SensorDataReader; 9 = MultiBinaryDumpReader
-s_sensorIdx = 9;
+s_sensorIdx = 3;
 
 //s_windowWidth = 1280;		//render window width
 //s_windowHeight = 960;		//render window height
@@ -7,8 +7,7 @@ s_windowWidth = 640;		//render window width
 s_windowHeight = 480;		//render window height
 
 //s_adapterWidth = 640;		//input depth gets re-sampled to this width (decrease to improve perf.)
-s_adapterHeight = 480;		//input depth gets re-sampled //to this height (decrease to improve perf.)
-
+//s_adapterHeight = 480;		//input depth gets re-sampled //to this height (decrease to improve perf.)
 s_adapterWidth = 320;		//input depth gets re-sampled to this width (decrease to improve perf.)
 s_adapterHeight = 240;		//input depth gets re-sampled to this height (decrease to improve perf.)
 //s_adapterWidth = 1296;		//this really hits perf (ray cast)
@@ -35,8 +34,8 @@ s_SDFIntegrationWeightMax = 255;		//maximum integration weight for a voxel
 // s_SDFBlockSize is pound defined (SDF_BLOCK_SIZE)
 // s_hashBucketSize is pound defined (HASH_BUCKET_SIZE)
 s_hashNumBuckets = 50000;				//smaller voxels require more space
-s_hashNumSDFBlocks = 10000;//100000;	//smaller voxels require more space
-s_hashMaxCollisionLinkedListSize = 7;
+s_hashNumSDFBlocks = 262144;  //100000	//smaller voxels require more space
+s_hashMaxCollisionLinkedListSize = 1000000;
 
 // raycast
 s_SDFRayIncrementFactor = 0.8f;			//(don't touch) s_SDFRayIncrement = s_SDFRayIncrementFactor*s_SDFTrunaction;
@@ -44,12 +43,19 @@ s_SDFRayThresSampleDistFactor = 50.5f;	//(don't touch) s_SDFRayThresSampleDist =
 s_SDFRayThresDistFactor = 50.0f;		//(don't touch) s_SDFRayThresDist = s_SDFRayThresSampleDistFactor*s_rayIncrement;
 s_SDFUseGradients 		= false;		//analytic gradients for rendering
 
- s_binaryDumpSensorFile = "Dump/simple.sensor";
+// s_binaryDumpSensorFile = "Dump/simple.sensor";
 // s_binaryDumpSensorFile = "Dump/nsh4224_dynamic.sensor";
 // s_binaryDumpSensorFile = "Dump/nsh4224_static.sensor";
-// s_binaryDumpSensorFile = "Dump/nsh4224_dynamic_quick.sensor"
+s_binaryDumpSensorFile = "Dump/nsh4224_dynamic_quick.sensor"
+// s_binaryDumpSensorFile = "Dump/nshcommon_1.sensor"
+// s_binaryDumpSensorFile = "Dump/nshcommon_2.sensor"
+// s_binaryDumpSensorFile = "Dump/nshcommon_3.sensor"
+// s_binaryDumpSensorFile = "Dump/nshcommon_4.sensor"
+// s_binaryDumpSensorFile = "Dump/nshcommon_5.sensor"
+// s_binaryDumpSensorFile = "Dump/nshcommon_6.sensor"
+// s_binaryDumpSensorFile = "Dump/nshcommon_7.sensor"
 
-s_binaryDumpSensorFileList = "Dump/simple.sensor,Dump/simple.sensor"
+s_binaryDumpSensorFileList = "Dump/simple.sensor,Dump/nsh4224_static.sensor"
 
 s_binaryDumpSensorUseTrajectory = true;				    // use the recorded trajectory form the binary dump as the our rigid transformation estimation.
 s_binaryDumpSensorUseTrajectoryOnlyInit = false;	    // This option is valid only if the previous one is set true. If it is false, then for every frame we will be using the precomputed traj instead of performing ICP. Otherwise we will only be using the precomputed traj for the first frame.
@@ -102,7 +108,7 @@ s_streamingMinGridPos = -128 -128 -128;
 s_streamingInitialChunkListSize = 2000;
 s_streamingRadius = 4.0f;						// Radius of the active region, depending on DepthMin and DepthMax 
 s_streamingPos = 0.0f 0.0f 3.0f 1.0f;			// Center of the active region in camera space, depending on DepthMin and DepthMax
-s_streamingOutParts = 80;						// number of frames required to sweep through the entire hash
+s_streamingOutParts = 10;						// number of frames required to sweep through the entire hash
 
 //recording of the input data
 s_recordData = true;				// master flag for data recording: enables or disables data recording

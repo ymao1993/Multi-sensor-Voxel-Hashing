@@ -139,8 +139,12 @@ RGBDSensor* getRGBDSensor()
 	}
 
 	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiBinaryDumpReader) {
+#ifdef BINARY_DUMP_READER
 		g_sensor = new MultiBinaryDumpReader;
 		return g_sensor;
+#else
+		throw MLIB_EXCEPTION("Requires BINARY_DUMP_READER macro");
+#endif
 	}
 
 
@@ -553,6 +557,7 @@ HRESULT CALLBACK OnD3D11CreateDevice(ID3D11Device* pd3dDevice, const DXGI_SURFAC
 	// 15769 getRGBDSensor() should have been init here, 
 	// i.e., MultiBinaryDumpReader.createFirstConnected called.
 	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiBinaryDumpReader){
+#ifdef BINARY_DUMP_READER
 		std::cout << "Initializing CUDASensor and CUDAAdapter array" << std::endl;
 		// Let's do some sanity check:
 		auto multireader = dynamic_cast<MultiBinaryDumpReader*>(getRGBDSensor());
@@ -563,6 +568,9 @@ HRESULT CALLBACK OnD3D11CreateDevice(ID3D11Device* pd3dDevice, const DXGI_SURFAC
 			V_RETURN(g_RGBDAdapters[i].OnD3D11CreateDevice(pd3dDevice, &multireader->getBinaryDumpReaders()[i], GlobalAppState::get().s_adapterWidth, GlobalAppState::get().s_adapterHeight));
 			V_RETURN(g_CudaDepthSensors[i].OnD3D11CreateDevice(pd3dDevice, &g_RGBDAdapters[i]));
 		}
+#else
+		throw MLIB_EXCEPTION("Requires BINARY_DUMP_READER macro");
+#endif
 	}
 	else {
 		V_RETURN(g_RGBDAdapter.OnD3D11CreateDevice(pd3dDevice, getRGBDSensor(), GlobalAppState::get().s_adapterWidth, GlobalAppState::get().s_adapterHeight));
@@ -708,6 +716,7 @@ void reconstruction_multi_dump(){
 	assert(GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiBinaryDumpReader);
 	assert(GlobalAppState::get().s_binaryDumpSensorUseTrajectory);
 
+#ifdef BINARY_DUMP_READER
 
 	auto multireader = dynamic_cast<MultiBinaryDumpReader*>(getRGBDSensor());
 	for (size_t i = 0; i < multireader->getBinaryDumpReaders().size(); i++){
@@ -796,6 +805,7 @@ void reconstruction_multi_dump(){
 		}
 
 	} //end for
+#endif
 }
 
 /**
@@ -937,6 +947,15 @@ void reconstruction()
 		PROFILE_CODE(profile.stopTiming("Streaming", g_RGBDAdapter.getFrameNumber()));
 	}
 
+	// heap debug
+	static int scount = 0;
+	const int gap = 50;
+	if (scount == gap-1) {
+		g_sceneRep->checkHeapValRange();
+	}
+	scount = (scount + 1) % gap;
+
+
 	//
 	// Integration
 	//
@@ -992,6 +1011,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	// 15769 Process the whole array of CudaSensor
 	HRESULT bGotDepth = S_OK;
 	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiBinaryDumpReader){
+#ifdef BINARY_DUMP_READER
 		// std::cout << "Processing CUDASensor and CUDAAdapter array in FrameRender" << std::endl;
 		auto multireader = dynamic_cast<MultiBinaryDumpReader*>(getRGBDSensor());
 		for (size_t i = 0; i < multireader->getBinaryDumpReaders().size(); i++){
@@ -1000,6 +1020,9 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 			g_CudaDepthSensors[i].setFiterDepthValues(GlobalAppState::get().s_depthFilter, GlobalAppState::get().s_depthSigmaD, GlobalAppState::get().s_depthSigmaR);
 			g_CudaDepthSensors[i].setFiterIntensityValues(GlobalAppState::get().s_colorFilter, GlobalAppState::get().s_colorSigmaD, GlobalAppState::get().s_colorSigmaR);
 		}
+#else 
+		throw MLIB_EXCEPTION("Requires BINARY_DUMP_READER macro");
+#endif
 	}
 	else {
 		bGotDepth = g_CudaDepthSensor.process(pd3dImmediateContext);

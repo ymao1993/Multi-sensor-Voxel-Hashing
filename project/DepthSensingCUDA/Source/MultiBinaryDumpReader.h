@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef BINARY_DUMP_READER
+
 #include "GlobalAppState.h"
 #include "RGBDSensor.h"
 #include "stdafx.h"
@@ -43,3 +45,5 @@ private:
 	std::vector<BinaryDumpReader> readers_;
 };
 
+
+#endif

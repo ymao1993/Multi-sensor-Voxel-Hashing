@@ -27,20 +27,15 @@ struct SDFBlockDesc {
 __global__ void integrateFromGlobalHashPass1Kernel(VoxelHashData voxelHashData, uint start, float radius, float3 cameraPosition, uint* d_outputCounter, SDFBlockDesc* d_output) 
 {
 	const HashParams& hashParams = c_hashParams;
-	const unsigned int hashEntryIdx = blockIdx.x*blockDim.x + threadIdx.x + start;
-
+	unsigned int hashEntryIdx = blockIdx.x*blockDim.x + threadIdx.x + start;
 	const uint linBlockSize = SDF_BLOCK_SIZE * SDF_BLOCK_SIZE * SDF_BLOCK_SIZE;
 
 	if (hashEntryIdx < hashParams.m_hashNumBuckets*HASH_BUCKET_SIZE) {
-
-		//HashEntry entry = getHashEntry(g_Hash, bucketID);
 		HashEntry& entry = voxelHashData.d_hash[hashEntryIdx];
-
 		float3 posWorld = voxelHashData.SDFBlockToWorld(entry.pos);
 		float d = length(posWorld - cameraPosition);
 
 		if (entry.ptr != FREE_ENTRY && d >= radius) {
-		
 			// Write
 			SDFBlockDesc d;
 			d.pos = entry.pos;
@@ -54,17 +49,16 @@ __global__ void integrateFromGlobalHashPass1Kernel(VoxelHashData voxelHashData, 
 			#endif
 			#ifdef HANDLE_COLLISIONS
 				//if there is an offset or hash doesn't belong to the bucket (linked list)
-				if (entry.offset != 0 || voxelHashData.computeHashPos(entry.pos) != hashEntryIdx / HASH_BUCKET_SIZE) {
-					
-					if (voxelHashData.deleteHashEntryElement(entry.pos)) {
-						voxelHashData.appendHeap(entry.ptr/linBlockSize);
+				if (entry.offset != 0 || voxelHashData.computeHashPos(entry.pos) != hashEntryIdx / HASH_BUCKET_SIZE) {					
+					if (voxelHashData.deleteHashEntry(entry.pos)) {
+						voxelHashData.appendHeap(d.ptr / linBlockSize);
 						uint addr = atomicAdd(&d_outputCounter[0], 1);
 						d_output[addr] = d;
 					}
 				} else {
 					uint addr = atomicAdd(&d_outputCounter[0], 1);
 					d_output[addr] = d;
-					voxelHashData.appendHeap(entry.ptr/linBlockSize);
+					voxelHashData.appendHeap(d.ptr / linBlockSize);
 					voxelHashData.resetHashEntry(entry);
 				}
 			#endif
@@ -181,8 +175,13 @@ __global__ void chunkToGlobalHashPass2Kernel(VoxelHashData voxelHashData, uint h
 {
 	const uint blockID = blockIdx.x;
 	const uint linBlockSize = SDF_BLOCK_SIZE * SDF_BLOCK_SIZE * SDF_BLOCK_SIZE;
-		
+		 
 	uint ptr = voxelHashData.d_heap[heapCountPrev-blockID]*linBlockSize;
+
+	int freeBlockIdx = voxelHashData.d_heap[heapCountPrev - blockID];
+	//if (freeBlockIdx >= 262144) {
+	//	printf("blocks idx: %d, heap idx: %d\n", freeBlockIdx, heapCountPrev - blockID);
+	//}
 	voxelHashData.d_SDFBlocks[ptr + threadIdx.x] = d_SDFBlocks[blockIdx.x*blockDim.x + threadIdx.x];
 }
 
