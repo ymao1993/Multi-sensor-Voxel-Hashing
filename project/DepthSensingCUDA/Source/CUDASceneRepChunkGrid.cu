@@ -178,8 +178,8 @@ __global__ void chunkToGlobalHashPass2Kernel(VoxelHashData voxelHashData, uint h
 		 
 	uint ptr = voxelHashData.d_heap[heapCountPrev-blockID]*linBlockSize;
 
-	int freeBlockIdx = voxelHashData.d_heap[heapCountPrev - blockID];
-	//if (freeBlockIdx >= 262144) {
+	// int freeBlockIdx = voxelHashData.d_heap[heapCountPrev - blockID];
+	// if (freeBlockIdx >= 262144) {
 	//	printf("blocks idx: %d, heap idx: %d\n", freeBlockIdx, heapCountPrev - blockID);
 	//}
 	voxelHashData.d_SDFBlocks[ptr + threadIdx.x] = d_SDFBlocks[blockIdx.x*blockDim.x + threadIdx.x];
