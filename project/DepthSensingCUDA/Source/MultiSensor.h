@@ -71,6 +71,10 @@ public:
 		std::cout << "saveRecordedFramesToFile is not supported by MultiSensor" << std::endl;
 	}
 
+	virtual int getCurrentSensorIdx() const override {
+		return curSensorIdx;
+	}
+
 	RGBDSensor* getCurSensor() {
 		return sensors[curSensorIdx];
 	}
@@ -78,7 +82,6 @@ public:
 	int getSensorNum() {
 		return (int)sensors.size();
 	}
-
 
 private:
 	bool hasNextFrame();

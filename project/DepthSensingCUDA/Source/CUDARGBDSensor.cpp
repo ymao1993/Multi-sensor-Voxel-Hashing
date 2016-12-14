@@ -67,7 +67,14 @@ CUDARGBDSensor::CUDARGBDSensor()
 
 CUDARGBDSensor::~CUDARGBDSensor()
 {
-	m_depthCameraData.free();
+	if (mode == NoBuffering) {
+		m_depthCameraData.free();
+	}
+	else if (mode == BatchBuffering) {
+		for (int i = 0; i < bufferedFrames.size(); i++) {
+			bufferedFrames[i].depthCameraData.free();
+		}
+	}
 }
 
 void CUDARGBDSensor::OnD3D11DestroyDevice() 
@@ -134,74 +141,53 @@ HRESULT CUDARGBDSensor::OnD3D11CreateDevice(ID3D11Device* device, CUDARGBDAdapte
 	m_depthCameraParams.m_imageHeight = m_RGBDAdapter->getHeight();
 	m_depthCameraParams.m_imageWidth = m_RGBDAdapter->getWidth();
 
-	m_depthCameraData.alloc(m_depthCameraParams);
+
+	if (GlobalAppState().get().s_enableBatchBuffering) {
+		mode = BatchBuffering;
+		bufferedFrames.resize(GlobalAppState().get().s_batchBufferingSize);
+		for (int i = 0; i < bufferedFrames.size(); i++) {
+			bufferedFrames[i].depthCameraData.alloc(m_depthCameraParams);
+		}
+	}
+	else {
+		mode = NoBuffering;
+		m_depthCameraData.alloc(m_depthCameraParams);
+	}
 
 	return hr;
-} 
+}
 
-HRESULT CUDARGBDSensor::process(ID3D11DeviceContext* context)
-{
-	HRESULT hr = S_OK;
+void CUDARGBDSensor::post_process(ID3D11DeviceContext* context, DepthCameraData& depthCameraData) {
 
-	if (m_RGBDAdapter->process(context) == S_FALSE)	return S_FALSE;
-
-	////////////////////////////////////////////////////////////////////////////////////
-	// Process Color
-	////////////////////////////////////////////////////////////////////////////////////
+	// process color
+	if (m_bFilterIntensityValues)	gaussFilterFloat4Map(depthCameraData.d_colorData, m_RGBDAdapter->getColorMapResampledFloat4(), m_fBilateralFilterSigmaDIntensity, m_fBilateralFilterSigmaRIntensity, m_RGBDAdapter->getWidth(), m_RGBDAdapter->getHeight());
+	else							copyFloat4Map(depthCameraData.d_colorData, m_RGBDAdapter->getColorMapResampledFloat4(), m_RGBDAdapter->getWidth(), m_RGBDAdapter->getHeight());
 
 	//Start Timing
-	if (GlobalAppState::get().s_timingsDetailledEnabled) { cutilSafeCall(cudaDeviceSynchronize()); m_timer.start(); }
-
-	if (m_bFilterIntensityValues)	gaussFilterFloat4Map(m_depthCameraData.d_colorData, m_RGBDAdapter->getColorMapResampledFloat4(), m_fBilateralFilterSigmaDIntensity, m_fBilateralFilterSigmaRIntensity, m_RGBDAdapter->getWidth(), m_RGBDAdapter->getHeight());
-	else							copyFloat4Map(m_depthCameraData.d_colorData, m_RGBDAdapter->getColorMapResampledFloat4(), m_RGBDAdapter->getWidth(), m_RGBDAdapter->getHeight());
-
-	// Stop Timing
-	if (GlobalAppState::get().s_timingsDetailledEnabled) { cutilSafeCall(cudaDeviceSynchronize()); m_timer.stop(); TimingLog::totalTimeFilterColor += m_timer.getElapsedTimeMS(); TimingLog::countTimeFilterColor++; }
-
-	////////////////////////////////////////////////////////////////////////////////////
-	// Process Depth
-	////////////////////////////////////////////////////////////////////////////////////
-
-	//Start Timing
-	if(GlobalAppState::get().s_timingsDetailledEnabled) { cutilSafeCall(cudaDeviceSynchronize()); m_timer.start(); }
-
-	if(m_bFilterDepthValues) gaussFilterFloatMap(d_depthMapFilteredFloat, m_RGBDAdapter->getDepthMapResampledFloat(), m_fBilateralFilterSigmaD, m_fBilateralFilterSigmaR, m_RGBDAdapter->getWidth(), m_RGBDAdapter->getHeight());
+	if (m_bFilterDepthValues) gaussFilterFloatMap(d_depthMapFilteredFloat, m_RGBDAdapter->getDepthMapResampledFloat(), m_fBilateralFilterSigmaD, m_fBilateralFilterSigmaR, m_RGBDAdapter->getWidth(), m_RGBDAdapter->getHeight());
 	else					 copyFloatMap(d_depthMapFilteredFloat, m_RGBDAdapter->getDepthMapResampledFloat(), m_RGBDAdapter->getWidth(), m_RGBDAdapter->getHeight());
 
 	//TODO this call seems not needed as the depth map is overwriten later anyway later anyway...
-	setInvalidFloatMap(m_depthCameraData.d_depthData, m_RGBDAdapter->getWidth(), m_RGBDAdapter->getHeight());
+	setInvalidFloatMap(depthCameraData.d_depthData, m_RGBDAdapter->getWidth(), m_RGBDAdapter->getHeight());
 
-	// Stop Timing
-	if(GlobalAppState::get().s_timingsDetailledEnabled) { cutilSafeCall(cudaDeviceSynchronize()); m_timer.stop(); TimingLog::totalTimeFilterDepth += m_timer.getElapsedTimeMS(); TimingLog::countTimeFilterDepth++; }
-
-	////////////////////////////////////////////////////////////////////////////////////
-	// Render to Color Space
-	////////////////////////////////////////////////////////////////////////////////////
-
-	//Start Timing
-	if(GlobalAppState::get().s_timingsDetailledEnabled) { cutilSafeCall(cudaDeviceSynchronize()); m_timer.start(); }
-
-	if(GlobalAppState::get().s_bUseCameraCalibration)
-	{	
+	// render to color space
+	if (GlobalAppState::get().s_bUseCameraCalibration)
+	{
 		mat4f depthExt = m_RGBDAdapter->getDepthExtrinsics();
 
 		g_CustomRenderTarget.Clear(context);
 		g_CustomRenderTarget.Bind(context);
 		g_RGBDRenderer.RenderDepthMap(context,
-			d_depthMapFilteredFloat, m_depthCameraData.d_colorData, m_RGBDAdapter->getWidth(), m_RGBDAdapter->getHeight(),
+			d_depthMapFilteredFloat, depthCameraData.d_colorData, m_RGBDAdapter->getWidth(), m_RGBDAdapter->getHeight(),
 			m_RGBDAdapter->getDepthIntrinsicsInv(), depthExt, m_RGBDAdapter->getColorIntrinsics(),
 			g_CustomRenderTarget.getWidth(), g_CustomRenderTarget.getHeight(),
 			GlobalAppState::get().s_remappingDepthDiscontinuityThresOffset, GlobalAppState::get().s_remappingDepthDiscontinuityThresLin);
 		g_CustomRenderTarget.Unbind(context);
-		g_CustomRenderTarget.copyToCuda(m_depthCameraData.d_depthData, 0);
-
-
-		//Util::writeToImage(m_depthCameraData.d_depthData, getDepthWidth(), getDepthHeight(), "depth.png");
-		//Util::writeToImage(m_depthCameraData.d_colorData, getDepthWidth(), getDepthHeight(), "color.png");
+		g_CustomRenderTarget.copyToCuda(depthCameraData.d_depthData, 0);
 	}
 	else
 	{
-		copyFloatMap(m_depthCameraData.d_depthData, d_depthMapFilteredFloat, m_RGBDAdapter->getWidth(), m_RGBDAdapter->getHeight());
+		copyFloatMap(depthCameraData.d_depthData, d_depthMapFilteredFloat, m_RGBDAdapter->getWidth(), m_RGBDAdapter->getHeight());
 	}
 
 
@@ -209,31 +195,51 @@ HRESULT CUDARGBDSensor::process(ID3D11DeviceContext* context)
 	if (bErode) {
 		unsigned int numIter = 20;
 
-		numIter = 2 * ((numIter + 1)/2);
+		numIter = 2 * ((numIter + 1) / 2);
 		for (unsigned int i = 0; i < numIter; i++) {
 			if (i % 2 == 0) {
-				erodeDepthMap(d_depthErodeHelper, m_depthCameraData.d_depthData, 5, getDepthWidth(), getDepthHeight(), 0.05f, 0.3f);
-			} else {
-				erodeDepthMap(m_depthCameraData.d_depthData, d_depthErodeHelper, 5, getDepthWidth(), getDepthHeight(), 0.05f, 0.3f);
+				erodeDepthMap(d_depthErodeHelper, depthCameraData.d_depthData, 5, getDepthWidth(), getDepthHeight(), 0.05f, 0.3f);
+			}
+			else {
+				erodeDepthMap(depthCameraData.d_depthData, d_depthErodeHelper, 5, getDepthWidth(), getDepthHeight(), 0.05f, 0.3f);
 			}
 		}
 	}
 
 	//TODO check whether the intensity is actually used
-	convertColorToIntensityFloat(d_intensityMapFilteredFloat, m_depthCameraData.d_colorData,  m_RGBDAdapter->getWidth(), m_RGBDAdapter->getHeight());
+	convertColorToIntensityFloat(d_intensityMapFilteredFloat, depthCameraData.d_colorData, m_RGBDAdapter->getWidth(), m_RGBDAdapter->getHeight());
 
 
 	float4x4 M((m_RGBDAdapter->getColorIntrinsicsInv()).ptr());
-	m_depthCameraData.updateParams(getDepthCameraParams());
-	convertDepthFloatToCameraSpaceFloat4(d_cameraSpaceFloat4, m_depthCameraData.d_depthData, M, m_RGBDAdapter->getWidth(), m_RGBDAdapter->getHeight(), m_depthCameraData); // !!! todo
+	depthCameraData.updateParams(getDepthCameraParams());
+	convertDepthFloatToCameraSpaceFloat4(d_cameraSpaceFloat4, depthCameraData.d_depthData, M, m_RGBDAdapter->getWidth(), m_RGBDAdapter->getHeight(), depthCameraData); // !!! todo
 	computeNormals(d_normalMapFloat4, d_cameraSpaceFloat4, m_RGBDAdapter->getWidth(), m_RGBDAdapter->getHeight());
 
 	float4x4 Mintrinsics((m_RGBDAdapter->getColorIntrinsics()).ptr());
-	cudaMemcpyToArray(m_depthCameraData.d_depthArray, 0, 0, m_depthCameraData.d_depthData, sizeof(float)*m_depthCameraParams.m_imageHeight*m_depthCameraParams.m_imageWidth, cudaMemcpyDeviceToDevice);
-	cudaMemcpyToArray(m_depthCameraData.d_colorArray, 0, 0, m_depthCameraData.d_colorData, sizeof(float4)*m_depthCameraParams.m_imageHeight*m_depthCameraParams.m_imageWidth, cudaMemcpyDeviceToDevice);
+	cudaMemcpyToArray(depthCameraData.d_depthArray, 0, 0, depthCameraData.d_depthData, sizeof(float)*m_depthCameraParams.m_imageHeight*m_depthCameraParams.m_imageWidth, cudaMemcpyDeviceToDevice);
+	cudaMemcpyToArray(depthCameraData.d_colorArray, 0, 0, depthCameraData.d_colorData, sizeof(float4)*m_depthCameraParams.m_imageHeight*m_depthCameraParams.m_imageWidth, cudaMemcpyDeviceToDevice);
 
-	// Stop Timing
-	if(GlobalAppState::get().s_timingsDetailledEnabled) { cutilSafeCall(cudaDeviceSynchronize()); m_timer.stop(); TimingLog::totalTimeRemapDepth += m_timer.getElapsedTimeMS(); TimingLog::countTimeRemapDepth++; }
+}
+
+HRESULT CUDARGBDSensor::process(ID3D11DeviceContext* context)
+{
+	HRESULT hr = S_OK;
+
+	if (mode == NoBuffering) {
+		if (m_RGBDAdapter->process(context) == S_FALSE)	return S_FALSE;
+		post_process(context, m_depthCameraData);
+	}
+	else if (mode == BatchBuffering) {
+		NumValidEntry = 0;
+		for (int i = 0; i < bufferedFrames.size(); i++)
+		{
+			if (m_RGBDAdapter->process(context) == S_FALSE)	return S_FALSE;
+			post_process(context, bufferedFrames[i].depthCameraData);
+			bufferedFrames[i].rigidTransformation = m_RGBDAdapter->getRigidTransform();
+			bufferedFrames[i].sensorId = m_RGBDAdapter->getCurrentSensorIdx();
+			NumValidEntry++;
+		}
+	}
 
 	return hr;
 }

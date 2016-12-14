@@ -20,6 +20,20 @@
 
 extern "C" void computeDerivativesFloat(float* d_outputDU, float* d_outputDV, float* d_input, unsigned int width, unsigned int height);
 
+
+enum CUDARGBDSensorMode
+{
+	NoBuffering,
+	BatchBuffering
+};
+
+struct FrameEntry
+{
+	int sensorId;
+	DepthCameraData depthCameraData;
+	mat4f rigidTransformation;
+};
+
 class CUDARGBDSensor
 {
 	public:
@@ -71,6 +85,19 @@ class CUDARGBDSensor
 			return m_depthCameraData;
 		}
 
+		vector<FrameEntry> getBufferedFrame() {
+			vector<FrameEntry> ret(bufferedFrames.begin(), bufferedFrames.begin() + NumValidEntry);
+			return ret;
+		}
+
+		vector<DepthCameraData> getAllDepthCameraDataEntries() {
+			vector<DepthCameraData> ret;
+			for (int i = 0; i < bufferedFrames.size(); i++) {
+				ret.push_back(bufferedFrames[i].depthCameraData);
+			}
+			return ret;
+		}
+
 		//! the depth camera parameter struct (lives on the CPU)
 		const DepthCameraParams& getDepthCameraParams() {
 			return m_depthCameraParams;
@@ -84,12 +111,25 @@ class CUDARGBDSensor
 		//! computes and returns the depth map in hsv
 		float4* getAndComputeDepthHSV() const;
 
+		CUDARGBDSensorMode getMode() {
+			return mode;
+		}
+
 	private:
 
-		DepthCameraData		m_depthCameraData;
+		void post_process(ID3D11DeviceContext* context, DepthCameraData& depthCameraData);
+
+		CUDARGBDSensorMode mode;
 		DepthCameraParams	m_depthCameraParams;
 	
 		CUDARGBDAdapter* m_RGBDAdapter;
+
+		// only used in batch buffering mode (TODO: refactor it in the future)
+		std::vector<FrameEntry> bufferedFrames;
+		int NumValidEntry;
+
+		// only used in no buffering mode (TODO: refactor it in the future)
+		DepthCameraData		m_depthCameraData;
 
 		DX11RGBDRenderer			g_RGBDRenderer;
 		DX11CustomRenderTarget		g_CustomRenderTarget;
