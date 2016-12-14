@@ -13,6 +13,10 @@
 LONG WINAPI StreamingFunc(LPVOID lParam) 
 {
 	CUDASceneRepChunkGrid* chunkGrid = (CUDASceneRepChunkGrid*)lParam;
+	/**
+	* 15769 This is the parallel thread on host that performs the streaming.
+	* Need to change it if want to modify streaming behavior
+	*/
 	while (true)	{
 		chunkGrid->streamOutToCPUPass1CPU(true);
 		chunkGrid->streamInToGPUPass0CPU(chunkGrid->getPosCamera(), chunkGrid->getRadius(), true);

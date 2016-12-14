@@ -536,6 +536,10 @@ public:
 		return s_posCamera;
 	}
 
+	void setPosCamera(const vec3f& p){
+		s_posCamera = p;
+	}
+
 	float getRadius() const {
 		return s_radius;
 	}
