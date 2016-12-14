@@ -99,6 +99,8 @@
 	X(std::string, s_binaryDumpSensorFileList)\
 	X(bool, s_enableBatchBuffering)\
 	X(int, s_batchBufferingSize)\
+	X(bool, s_streamingAdaptive)\
+	X(int, s_streamingThreshold)\
 
 #ifndef VAR_NAME
 #define VAR_NAME(x) #x

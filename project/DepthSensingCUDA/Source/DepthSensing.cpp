@@ -41,8 +41,10 @@ CUDAMarchingCubesHashSDF*	g_marchingCubesHashSDF = NULL;
 CUDAHistrogramHashSDF*		g_historgram = NULL;
 CUDASceneRepChunkGrid*		g_chunkGrid = NULL;
 
+size_t	g_renderSensorId = 0;
 
 #pragma region scheduler
+
 class MultiFrameScheduler{
 public:
 	struct FrameRequest{
@@ -54,10 +56,10 @@ public:
 			p_depthCameraData(_p_depthCameraData), p_depthCameraParams(_p_depthCameraParams), 
 			sensor_id(_sensor_id), tag(_tag) {}
 
-		const mat4f transformation;
+		mat4f transformation;
 		const DepthCameraData* p_depthCameraData;
 		const DepthCameraParams* p_depthCameraParams;
-		const size_t sensor_id;
+		size_t sensor_id;
 		std::string tag;
 	};
 
@@ -77,25 +79,37 @@ public:
 		// Welcome to override in derived class
 		auto multireader = dynamic_cast<MultiSensor*>(getRGBDSensor());
 		for (auto& req : requests_){
-			std::cout << "Executing: " + req.tag << std::endl;
-			// The transformation is set here from the binary file directly. No need to run ICP below.
-			mat4f transformation = req.transformation;
+			execute_frame_request(req);
+		} //end for
+#endif
+	}
 
-			if (transformation[0] == -std::numeric_limits<float>::infinity()) {
-				std::cout << "INVALID FRAME" << std::endl;
-				return;
-			}
+protected:
+	std::vector<FrameRequest> requests_;
 
-			//
-			// 2. Perform Volumetric Integration with Voxel Hashing
-			//
-			if (transformation(0, 0) == -std::numeric_limits<float>::infinity()) {
-				std::cout << "!!! TRACKING LOST !!!" << std::endl;
-				GlobalAppState::get().s_reconstructionEnabled = false;
-				return;
-			}
+	void execute_frame_request(const FrameRequest& req){
+		std::cout << "Executing: " + req.tag << std::endl;
+		std::cout << "[Free SDFBlocks " << g_sceneRep->getHeapFreeCount() << " ] " << std::endl;
 
-			if (GlobalAppState::get().s_streamingEnabled) {
+		// The transformation is set here from the binary file directly. No need to run ICP below.
+		mat4f transformation = req.transformation;
+
+		if (transformation[0] == -std::numeric_limits<float>::infinity()) {
+			std::cout << "INVALID FRAME" << std::endl;
+			return;
+		}
+
+		//
+		// 2. Perform Volumetric Integration with Voxel Hashing
+		//
+		if (transformation(0, 0) == -std::numeric_limits<float>::infinity()) {
+			std::cout << "!!! TRACKING LOST !!!" << std::endl;
+			GlobalAppState::get().s_reconstructionEnabled = false;
+			return;
+		}
+
+		if (GlobalAppState::get().s_streamingEnabled) {
+			if (!GlobalAppState::get().s_streamingAdaptive || g_sceneRep->getHeapFreeCount() < GlobalAppState::get().s_streamingThreshold){
 				PROFILE_CODE(profile.startTiming("Streaming"));
 				vec4f posWorld = transformation*GlobalAppState::getInstance().s_streamingPos; // trans laggs one frame *trans
 				vec3f p(posWorld.x, posWorld.y, posWorld.z);
@@ -106,29 +120,52 @@ public:
 				//g_chunkGrid->debugCheckForDuplicates();
 				PROFILE_CODE(profile.stopTiming("Streaming"));
 			}
+		}
 
-			// perform integration
-			if (GlobalAppState::get().s_integrationEnabled) {
-				PROFILE_CODE(profile.startTiming("Integration"));
-
-				g_sceneRep->integrate(transformation, *req.p_depthCameraData, *req.p_depthCameraParams, g_chunkGrid->getBitMaskGPU());
-
-				PROFILE_CODE(profile.stopTiming("Integration"));
-			}
-			else {
-				//compactification is required for the raycast splatting
-				assert(false);	// guess we should not land here
-			}
-
-		} //end for
-#endif
+		// perform integration
+		if (GlobalAppState::get().s_integrationEnabled) {
+			PROFILE_CODE(profile.startTiming("Integration"));
+			g_sceneRep->integrate(transformation, *req.p_depthCameraData, *req.p_depthCameraParams, g_chunkGrid->getBitMaskGPU());
+			PROFILE_CODE(profile.stopTiming("Integration"));
+		}
+		else {
+			//compactification is required for the raycast splatting
+			assert(false);	// guess we should not land here
+			g_sceneRep->setLastRigidTransformAndCompactify(transformation, g_CudaDepthSensor.getDepthCameraData());
+		}
 	}
-
-
-private:
-	std::vector<FrameRequest> requests_;
-
 };
+
+
+class FrameBasedScheduler : public MultiFrameScheduler{
+public:
+	void schedule_and_execute() override{
+		// iteratively select the frame request that's closest to the camera pos in hash table
+		while (!requests_.empty()){
+			mat4f last_transform = g_sceneRep->getLastRigidTransform();
+			vec4f last_posWorld = last_transform*GlobalAppState::getInstance().s_streamingPos;
+			vec4f req_posWorld = requests_[0].transformation*GlobalAppState::getInstance().s_streamingPos;
+			float closest_dist = vec4f::dist(last_posWorld, req_posWorld);
+			size_t closest_idx = 0;
+
+			for (size_t i = 1; i < requests_.size(); i++){
+				vec4f req_posWorld = requests_[i].transformation * GlobalAppState::getInstance().s_streamingPos;
+				float d = vec4f::dist(last_posWorld, req_posWorld);
+				if (d < closest_dist){
+					closest_dist = d;
+					closest_idx = i;
+				}
+			}
+
+			execute_frame_request(requests_[closest_idx]);
+			requests_.erase(requests_.begin() + closest_idx);
+
+		}
+
+		assert(requests_.empty());
+	}
+};
+
 
 #pragma endregion
 
@@ -753,7 +790,6 @@ void reconstruction_multi_dump(){
 	assert(GlobalAppState::get().s_binaryDumpSensorUseTrajectory);
 
 #ifdef MULTI_SENSOR
-
 	// schedule
 	MultiFrameScheduler scheduler;
 	vector<FrameEntry> frames = g_CudaDepthSensor.getBufferedFrame();
@@ -822,6 +858,7 @@ void reconstruction()
 	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader ||
 		GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiSensor) {
 		std::cout << "[ frame " << g_RGBDAdapter.getFrameNumber() << " ] " << " [Free SDFBlocks " << g_sceneRep->getHeapFreeCount() << " ] " << std::endl;
+		return reconstruction_multi_dump();
 	}
 
 	mat4f transformation = mat4f::identity();
