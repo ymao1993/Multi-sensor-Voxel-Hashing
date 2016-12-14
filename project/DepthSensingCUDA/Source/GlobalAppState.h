@@ -100,7 +100,8 @@
 	X(bool, s_enableBatchBuffering)\
 	X(int, s_batchBufferingSize)\
 	X(bool, s_streamingAdaptive)\
-	X(int, s_streamingThreshold)
+	X(unsigned int, s_streamingThreshold) \
+	X(unsigned int, s_renderFrequency) \
 
 
 #ifndef VAR_NAME
