@@ -16,8 +16,13 @@
  * CUDARGBDAdapter
  * A wrapper class implemented in CUDA to adapt the sensor to a user specific output size.
  * It re-samples the original sensor output to a desired size and also adjusted the intrinsic matrix.
- * Note that the depth and color map data provided by this adaptor lives on GPU.
+ * Note that the depth and color map data provided by this adapter lives on GPU.
+ *
+ * Another feature provided by CUDARGBDAdaptor is called batch buffering. The basic idea is to buffer
+ * some number of frames on the GPU so that the scheduler can easily perform optimizations such as 
+ * loop reordering, fusing and so forth.
  */
+
 class CUDARGBDAdapter
 {
 	public:
@@ -113,6 +118,10 @@ class CUDARGBDAdapter
 			m_RGBDSensor->recordTrajectory(transform);
 		}
 
+		int getCurrentSensorIdx() {
+			return m_RGBDSensor->getCurrentSensorIdx();
+		}
+
 		//! record depth frame as point cloud, accumulates
 		void recordPointCloud(const mat4f& transform = mat4f::identity()) {
 			m_RGBDSensor->recordPointCloud(transform);
@@ -122,9 +131,30 @@ class CUDARGBDAdapter
 		}
 
 	private:
-		
-		RGBDSensor*		m_RGBDSensor;
-		unsigned int	m_frameNumber;
+
+		void updateCameraMatrices();
+		void allocateGPUBuffers(BYTE** pp_colorMapRaw, float4** pp_colorMapFloat4,
+												 float4** pp_colorMapResampledFloat4, float** pp_depthMapFloat,
+												 float** pp_depthMapResampledFloat);
+
+
+		void resampleDepthColor(BYTE* colorMapRaw, 
+								float4* colorMapFloat4, 
+								float4* colorMapResampledFloat4, 
+								float* d_depthMapFloat, 
+								float* depthMapResampledFloat);
+
+	private:
+		unsigned int m_width;
+		unsigned int m_height;
+		RGBDSensor*	 m_RGBDSensor;
+		unsigned int m_frameNumber;
+
+		float* d_depthMapFloat;
+		float* d_depthMapResampledFloat;
+		BYTE*	d_colorMapRaw;
+		float4*	d_colorMapFloat4;
+		float4* d_colorMapResampledFloat4;
 
 		// Camera intrinsics and extrinsics
 		mat4f m_depthIntrinsics;
@@ -135,19 +165,6 @@ class CUDARGBDAdapter
 		mat4f m_colorIntrinsicsInv;
 		mat4f m_colorExtrinsics;
 		mat4f m_colorExtrinsicsInv;
-
-		unsigned int m_width;
-		unsigned int m_height;
-
-		//! depth texture float [D]
-		float* d_depthMapFloat;					// float
-		float* d_depthMapResampledFloat;		// re-sampled depth
-	
-		//! color texture float [R G B A]
-		BYTE*	d_colorMapRaw;
-		float4*	d_colorMapFloat4;
-		float4* d_colorMapResampledFloat4;
-
 
 		Timer m_timer;
 };

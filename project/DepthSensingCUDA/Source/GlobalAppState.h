@@ -96,9 +96,12 @@
 	X(std::string, s_recordDataFile) \
 	X(bool, s_reconstructionEnabled) \
 	X(std::string, s_profilerDumpFolder) \
-	X(std::string, s_binaryDumpSensorFileList) \
-	X(bool, s_streamingAdaptive) \
-	X(unsigned int, s_streamingThreshold)
+	X(std::string, s_binaryDumpSensorFileList)\
+	X(bool, s_enableBatchBuffering)\
+	X(int, s_batchBufferingSize)\
+	X(bool, s_streamingAdaptive)\
+	X(int, s_streamingThreshold)
+
 
 #ifndef VAR_NAME
 #define VAR_NAME(x) #x

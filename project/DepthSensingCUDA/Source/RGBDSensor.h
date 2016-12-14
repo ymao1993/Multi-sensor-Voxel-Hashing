@@ -90,6 +90,10 @@ public:
 		return mat4f::identity();
 	}
 
+	virtual int getCurrentSensorIdx() const {
+		return 0;
+	}
+
 	bool isCompleted() {
 		return m_bCompleted;
 	}

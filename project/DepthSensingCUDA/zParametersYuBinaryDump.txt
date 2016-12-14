@@ -34,7 +34,7 @@ s_SDFIntegrationWeightMax = 255;		//maximum integration weight for a voxel
 // s_SDFBlockSize is pound defined (SDF_BLOCK_SIZE)
 // s_hashBucketSize is pound defined (HASH_BUCKET_SIZE)
 s_hashNumBuckets = 50000;				//smaller voxels require more space
-s_hashNumSDFBlocks = 8000;  //100000	//smaller voxels require more space
+s_hashNumSDFBlocks = 20000;  //100000	//smaller voxels require more space
 s_hashMaxCollisionLinkedListSize = 1000000;
 
 // raycast
@@ -61,7 +61,7 @@ s_SDFUseGradients 		= false;		//analytic gradients for rendering
 // s_binaryDumpSensorFile = "Dump/nsh_long_4.sensor"
 // s_binaryDumpSensorFile = "Dump/nsh_long_5.sensor"
 
-s_binaryDumpSensorFileList = "Dump/nsh_long_1.sensor,Dump/nsh_long_2.sensor,Dump/nsh_long_3.sensor,Dump/nsh_long_4.sensor,Dump/nsh_long_5.sensor"
+s_binaryDumpSensorFileList = "Dump/nsh_long_1.sensor,Dump/nsh_long_2.sensor"
 
 s_binaryDumpSensorUseTrajectory = true;				    // use the recorded trajectory form the binary dump as the our rigid transformation estimation.
 s_binaryDumpSensorUseTrajectoryOnlyInit = false;	    // This option is valid only if the previous one is set true. If it is false, then for every frame we will be using the precomputed traj instead of performing ICP. Otherwise we will only be using the precomputed traj for the first frame.
@@ -115,8 +115,8 @@ s_streamingInitialChunkListSize = 2000;
 s_streamingRadius = 4.0f;						// Radius of the active region, depending on DepthMin and DepthMax 
 s_streamingPos = 0.0f 0.0f 3.0f 1.0f;			// Center of the active region in camera space, depending on DepthMin and DepthMax
 s_streamingOutParts = 100;						// number of frames required to sweep through the entire hash
-s_streamingAdaptive = true;
-s_streamingThreshold = 1000;
+s_streamingAdaptive = false;	// Adaptively ON/OFF streaming based on hash table density
+s_streamingThreshold = 1000;	// Threshold to ON/FF streaming
 
 
 //recording of the input data
@@ -124,6 +124,10 @@ s_recordData = true;				// master flag for data recording: enables or disables d
 s_recordCompression = false;		//if recoding is enabled; then compression is used (.sens instead of .sensor)
 	s_recordDataFile = "./Dump/test.sensor";
 s_reconstructionEnabled = true;		//if recording is enabled; then the rigid transformation of the camera in each frame is also recorded.
+
+// optimization
+s_enableBatchBuffering = true;
+s_batchBufferingSize = 5;
 
 // profiler
 s_profilerDumpFolder = "./profiling_dump";   //dump folder output
