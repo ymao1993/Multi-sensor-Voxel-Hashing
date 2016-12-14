@@ -46,6 +46,7 @@ CUDASceneRepChunkGrid*		g_chunkGrid = NULL;
 size_t	g_renderSensorId = 0;
 
 #pragma region scheduler
+
 class MultiFrameScheduler{
 public:
 	struct FrameRequest{
@@ -110,16 +111,17 @@ protected:
 		}
 
 		if (GlobalAppState::get().s_streamingEnabled) {
-			PROFILE_CODE(profile.startTiming("Streaming"));
-			vec4f posWorld = transformation*GlobalAppState::getInstance().s_streamingPos; // trans laggs one frame *trans
-			vec3f p(posWorld.x, posWorld.y, posWorld.z);
+			if (!GlobalAppState::get().s_streamingAdaptive || g_sceneRep->getHeapFreeCount() < GlobalAppState::get().s_streamingThreshold){
+				PROFILE_CODE(profile.startTiming("Streaming"));
+				vec4f posWorld = transformation*GlobalAppState::getInstance().s_streamingPos; // trans laggs one frame *trans
+				vec3f p(posWorld.x, posWorld.y, posWorld.z);
 
+				g_chunkGrid->streamOutToCPUPass0GPU(p, GlobalAppState::get().s_streamingRadius, true, true);
+				g_chunkGrid->streamInToGPUPass1GPU(true);
 
-			g_chunkGrid->streamOutToCPUPass0GPU(p, GlobalAppState::get().s_streamingRadius, true, true);
-			g_chunkGrid->streamInToGPUPass1GPU(true);
-
-			//g_chunkGrid->debugCheckForDuplicates();
-			PROFILE_CODE(profile.stopTiming("Streaming"));
+				//g_chunkGrid->debugCheckForDuplicates();
+				PROFILE_CODE(profile.stopTiming("Streaming"));
+			}
 		}
 
 		// perform integration
@@ -786,7 +788,7 @@ void reconstruction_multi_dump(){
 #ifdef MULTI_SENSOR
 	// (1) Render
 	// FIXME The logic still needs to be fixed due to complicated integration order now.
-	size_t render_sensor = g_renderSensorId;
+	size_t render_sensor = 0;
 
 	if (g_RGBDAdapters[render_sensor].getFrameNumber() > 1) {
 
@@ -802,15 +804,16 @@ void reconstruction_multi_dump(){
 
 	MultiFrameScheduler scheduler;
 	// FrameBasedScheduler scheduler;
-	for (size_t i = 0; i < multireader->getSensorNum(); i++){
 
-		scheduler.add_request(MultiFrameScheduler::FrameRequest(
-			g_RGBDAdapters[i].getRigidTransform(),
-			&g_CudaDepthSensors[i].getDepthCameraData(), 
-			&g_CudaDepthSensors[i].getDepthCameraParams(), 
-			i,
-			std::string("Sensor ") + std::to_string(i) + std::string(", Frame ") + std::to_string(g_RGBDAdapters[i].getFrameNumber())));
-	}
+	size_t i = 0;
+
+	scheduler.add_request(MultiFrameScheduler::FrameRequest(
+		g_RGBDAdapter.getRigidTransform(),
+		&g_CudaDepthSensor.getDepthCameraData(), 
+		&g_CudaDepthSensor.getDepthCameraParams(), 
+		i,
+		std::string("Sensor ") + std::to_string(i) + std::string(", Frame ") + std::to_string(g_RGBDAdapters[i].getFrameNumber())));
+	
 
 	// (2b) Schedule and Execute
 	scheduler.schedule_and_execute();
@@ -827,6 +830,7 @@ void reconstruction()
 	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader ||
 		GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiSensor) {
 		std::cout << "[ frame " << g_RGBDAdapter.getFrameNumber() << " ] " << " [Free SDFBlocks " << g_sceneRep->getHeapFreeCount() << " ] " << std::endl;
+		return reconstruction_multi_dump();
 	}
 
 	mat4f transformation = mat4f::identity();
