@@ -75,7 +75,6 @@ s_lightDirection 		= 0.0f -1.0f 2.0f;
 s_RenderMode = 1;
 
 s_useColorForRendering = false;
-s_playData = true;
 
 s_renderingDepthDiscontinuityThresOffset = 0.012f;  // discontinuity offset in meter
 s_renderingDepthDiscontinuityThresLin	 = 0.001f; // additional discontinuity threshold per meter

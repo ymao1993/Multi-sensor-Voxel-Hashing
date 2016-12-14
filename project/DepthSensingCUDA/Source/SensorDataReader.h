@@ -24,23 +24,17 @@ public:
 	SensorDataReader();
 
 	//! Destructor; releases allocated ressources
-	~SensorDataReader();
+	virtual ~SensorDataReader() override;
 
 	//! initializes the sensor
-	HRESULT createFirstConnected();
+	virtual HRESULT createFirstConnected() override;
 
 	//! reads the next depth frame
-	HRESULT processDepth();
+	virtual HRESULT process() override;
 
+	virtual std::string getSensorName() const override;
 
-	HRESULT processColor()	{
-		//everything done in process depth since order is relevant (color must be read first)
-		return S_OK;
-	}
-
-	std::string getSensorName() const;
-
-	mat4f getRigidTransform(int offset) const;
+	virtual mat4f getRigidTransform(int offset) const override;
 
 
 	const SensorData* getSensorData() const {

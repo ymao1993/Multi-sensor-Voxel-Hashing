@@ -1,5 +1,6 @@
 #pragma once
- 
+
+#define MULTI_SENSOR
 
 //#define KINECT   // Kinect for windows (Kinect v1)
 //#define KINECT_ONE // Kinect for XBox one (Kinect v2)
@@ -8,9 +9,7 @@
 //#define INTEL_SENSOR
 //#define REAL_SENSE
 //#define STRUCTURE_SENSOR
-
-#define SENSOR_DATA_READER
-
+//#define SENSOR_DATA_READER
 //#define OBJECT_SENSING
 
 #include "Eigen.h"
@@ -78,7 +77,6 @@
 	X(bool, s_timingsTotalEnabled) \
 	X(unsigned int, s_RenderMode) \
 	X(bool, s_useColorForRendering) \
-	X(bool, s_playData) \
 	X(float, s_renderingDepthDiscontinuityThresLin) \
 	X(float, s_remappingDepthDiscontinuityThresLin) \
 	X(float, s_remappingDepthDiscontinuityThresOffset) \
@@ -120,7 +118,7 @@ public:
 		Sensor_RealSense = 6,
 		Sensor_StructureSensor = 7,
 		Sensor_SensorDataReader = 8,
-		Sensor_MultiBinaryDumpReader = 9
+		Sensor_MultiSensor = 9
 	};
 
 #define X(type, name) type name;

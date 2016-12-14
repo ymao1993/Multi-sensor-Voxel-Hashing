@@ -20,21 +20,21 @@ public:
 	RealSenseSensor();
 
 	//! Destructor; releases allocated ressources
-	~RealSenseSensor();
+	virtual ~RealSenseSensor() override;
 
 	//! Initializes the sensor
-	HRESULT createFirstConnected();
+	virtual HRESULT createFirstConnected() override;
 
 	//! Processes the depth & color data
-	HRESULT processDepth();
+	virtual processDepth() override;
 	
 
 	//! processing happends in processdepth()
-	HRESULT processColor() {
+	virtual HRESULT processColor() override{
 		return S_OK;
 	}
 
-	std::string getSensorName() const {
+	virtual std::string getSensorName() const override{
 		return "RealSense";
 	}
 	

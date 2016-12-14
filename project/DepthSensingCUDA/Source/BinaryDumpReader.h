@@ -16,31 +16,26 @@ class BinaryDumpReader : public RGBDSensor
 public:
 
 	//! Constructor
-	BinaryDumpReader();
+	BinaryDumpReader(const std::string& filename);
 
 	//! Destructor; releases allocated ressources
-	~BinaryDumpReader();
+	virtual ~BinaryDumpReader() override;
 
 	//! initializes the sensor
-	HRESULT createFirstConnected();
-
-	HRESULT createFirstConnected(std::string filename);
+	virtual HRESULT createFirstConnected() override;
 
 	//! reads the next depth frame
-	HRESULT processDepth();
-	
-	HRESULT processColor()	{
-		//everything done in process depth since order is relevant (color must be read first)
-		return S_OK;
-	}
+	virtual HRESULT process() override;
 
-	std::string getSensorName() const {
+	virtual std::string getSensorName() const override{
 		return m_data.m_SensorName;
 	}
 
-	mat4f getRigidTransform(int offset) const {
-		unsigned int idx = m_CurrFrame - 1 + offset;
-		if (idx >= m_data.m_trajectory.size()) throw MLIB_EXCEPTION("invalid trajectory index " + std::to_string(idx));
+	virtual mat4f getRigidTransform(int offset) const override{
+		unsigned int idx = m_CurrFrame + offset;
+		if (idx >= m_data.m_trajectory.size()) {
+			throw MLIB_EXCEPTION("invalid trajectory index " + std::to_string(idx));
+		}
 		return m_data.m_trajectory[idx];
 	}
 
@@ -50,10 +45,11 @@ private:
 
 	CalibratedSensorData m_data;
 
-	unsigned int	m_NumFrames;
-	unsigned int	m_CurrFrame;
+	int	m_NumFrames;
+	int	m_CurrFrame;
 	bool			m_bHasColorData;
 
+	std::string filename;
 };
 
 

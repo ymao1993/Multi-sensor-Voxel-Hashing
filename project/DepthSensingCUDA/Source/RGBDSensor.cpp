@@ -39,6 +39,8 @@ RGBDSensor::RGBDSensor()
 
 	m_recordedData = NULL;
 	m_recordedDataCache = NULL;
+
+	m_bCompleted = false;
 }
 
 /**
@@ -362,7 +364,7 @@ void RGBDSensor::recordTrajectory(const mat4f& transform)
 	m_recordedTrajectory.push_back(transform);
 }
 
-void RGBDSensor::saveRecordedFramesToFile( const std::string& filename )
+void RGBDSensor::saveRecordedFramesToFile( const std::string& filename)
 {
 	if (m_bUseModernSensFilesForRecording) {
 		
@@ -379,12 +381,16 @@ void RGBDSensor::saveRecordedFramesToFile( const std::string& filename )
 
 		//copy IMU and time stamps from the old sensor data
 		if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader) {
+#ifdef SENSOR_DATA_READER
 			const SensorData* inputSensor = ((SensorDataReader*)this)->getSensorData();
 			m_recordedData->m_IMUFrames = inputSensor->m_IMUFrames;
 			for (size_t i = 0; i < m_recordedData->m_frames.size(); i++) {
 				m_recordedData->m_frames[i].setTimeStampColor(inputSensor->m_frames[i].getTimeStampColor());
 				m_recordedData->m_frames[i].setTimeStampDepth(inputSensor->m_frames[i].getTimeStampDepth());
 			}
+#else
+			throw MLIB_EXCEPTION("Requires SENSOR_DATA_READER macro");
+#endif
 		}
 
 		std::cout << *m_recordedData << std::endl;
@@ -471,8 +477,7 @@ void RGBDSensor::saveRecordedFramesToFile( const std::string& filename )
 
 		m_recordedDepthData.clear();
 		m_recordedColorData.clear();	//destructor of cs frees all allocated data
-
-		//m_recordedTrajectory.clear();
+		m_recordedTrajectory.clear();
 	}
 }
 

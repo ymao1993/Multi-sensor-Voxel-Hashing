@@ -108,6 +108,7 @@ class CUDARGBDAdapter
 		void recordFrame() {
 			m_RGBDSensor->recordFrame();
 		}
+
 		void recordTrajectory(const mat4f& transform) {
 			m_RGBDSensor->recordTrajectory(transform);
 		}

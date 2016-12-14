@@ -27,18 +27,13 @@ public:
 
 	KinectOneSensor();
 
-	~KinectOneSensor();
+	virtual ~KinectOneSensor() override;
 
-	HRESULT createFirstConnected();
+	virtual HRESULT createFirstConnected() override;
 
-	HRESULT processDepth();
+	virtual HRESULT process() override;
 
-	HRESULT processColor() {
-		HRESULT hr = S_OK;
-		return hr;
-	}
-
-	std::string getSensorName() const {
+	virtual std::string getSensorName() const override{
 		return "KinectOne";
 	}
 

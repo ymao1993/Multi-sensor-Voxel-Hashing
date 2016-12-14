@@ -19,10 +19,25 @@ public:
 	//! Constructor; allocates CPU memory and creates handles
 
 	//! Destructor; releases allocated ressources
-	~KinectSensor();
+	virtual ~KinectSensor() override;
 
 	//! Initializes the sensor
-	HRESULT createFirstConnected();
+	virtual HRESULT createFirstConnected() override;
+
+	virtual std::string getSensorName() const override{
+		return "Kinect";
+	}
+
+	virtual HRESULT process() override;
+
+	//! toggles near mode if possible (only available on a windows Kinect)
+	virtual HRESULT toggleNearMode() override;
+
+	//! Toggle enable auto white balance
+	HRESULT toggleAutoWhiteBalance();
+	
+
+private:
 
 	//! gets the next depth frame
 	HRESULT processDepth();
@@ -30,18 +45,6 @@ public:
 	//! maps the color to depth data and copies depth and color data to the GPU
 	HRESULT processColor();
 
-	std::string getSensorName() const {
-		return "Kinect";
-	}
-
-	//! toggles near mode if possible (only available on a windows Kinect)
-	HRESULT toggleNearMode();
-
-	//! Toggle enable auto white balance
-	HRESULT toggleAutoWhiteBalance();
-	
-
-private:
 	INuiSensor*		m_pNuiSensor;
 
 	static const NUI_IMAGE_RESOLUTION   cDepthResolution = NUI_IMAGE_RESOLUTION_640x480;

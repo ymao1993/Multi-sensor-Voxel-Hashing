@@ -103,6 +103,12 @@ HRESULT IntelSensor::createFirstConnected()
 	return S_OK;
 }
 
+HRESULT IntelSensor::process()
+{
+	if (processDepth() != S_OK) return S_FALSE;
+	if (processColor() != S_OK) return S_FALSE;
+}
+
 HRESULT IntelSensor::processDepth()
 {
 	HRESULT hr = S_OK;

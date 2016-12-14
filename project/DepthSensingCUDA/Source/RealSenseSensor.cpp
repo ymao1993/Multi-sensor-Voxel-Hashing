@@ -114,7 +114,7 @@ HRESULT RealSenseSensor::createFirstConnected()
 	return hr;
 }
 
-HRESULT RealSenseSensor::processDepth()
+HRESULT RealSenseSensor::process()
 {
 	HRESULT hr = S_OK;
 
