@@ -75,6 +75,11 @@ public:
 		return sensors[curSensorIdx];
 	}
 
+	int getSensorNum() {
+		return (int)sensors.size();
+	}
+
+
 private:
 	bool hasNextFrame();
 	bool switchSensorIdx();

@@ -251,7 +251,7 @@ extern "C" void allocCUDA(VoxelHashData& voxelHashData, const HashParams& hashPa
 	allocKernel<<<gridSize, blockSize>>>(voxelHashData, depthCameraData, d_bitMask);
 
 	#ifdef _DEBUG
-		cutilSafeCall(cudaDeviceSynchronize());
+		cutilSafeCall(cudaDeviceSynchronize()); // FIXME! cudaSafeCall() Runtime API error 77: an illegal memory access was encountered
 		cutilCheckMsg(__FUNCTION__);
 	#endif
 }
