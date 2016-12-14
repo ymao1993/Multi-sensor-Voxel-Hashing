@@ -1,10 +1,9 @@
 ﻿
 #include "stdafx.h"
 #include "DepthSensing.h"
-//#include "StructureSensor.h"
 #include "SensorDataReader.h"
 #include "Profiler.h"
-#include "MultiBinaryDumpReader.h"
+#include "MultiSensor.h"
 
 #define ENABLE_PROFILE
 #ifdef ENABLE_PROFILE
@@ -52,8 +51,6 @@ RGBDSensor* getRGBDSensor()
 
 	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_Kinect) {
 #ifdef KINECT
-		//static KinectSensor s_kinect;
-		//return &s_kinect;
 		g_sensor = new KinectSensor;
 		return g_sensor;
 #else 
@@ -61,10 +58,8 @@ RGBDSensor* getRGBDSensor()
 #endif
 	}
 
-	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_PrimeSense)	{
+	else if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_PrimeSense)	{
 #ifdef OPEN_NI
-		//static PrimeSenseSensor s_primeSense;
-		//return &s_primeSense;
 		g_sensor = new PrimeSenseSensor;
 		return g_sensor;
 #else 
@@ -73,84 +68,77 @@ RGBDSensor* getRGBDSensor()
 	}
 	else if (GlobalAppState::getInstance().s_sensorIdx == GlobalAppState::Sensor_KinectOne) {
 #ifdef KINECT_ONE
-		//static KinectOneSensor s_kinectOne;
-		//return &s_kinectOne;
 		g_sensor = new KinectOneSensor;
 		return g_sensor;
 #else
 		throw MLIB_EXCEPTION("Requires Kinect 2.0 SDK and enable KINECT_ONE macro");
 #endif
 	}
-	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader) {
+	else if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader) {
 #ifdef BINARY_DUMP_READER
-		//static BinaryDumpReader s_binaryDump;
-		//return &s_binaryDump;
-		g_sensor = new BinaryDumpReader;
+		g_sensor = new BinaryDumpReader(GlobalAppState::get().s_binaryDumpSensorFile);
 		return g_sensor;
 #else 
 		throw MLIB_EXCEPTION("Requires BINARY_DUMP_READER macro");
 #endif
 	}
-	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_NetworkSensor) {
-		//static NetworkSensor s_networkSensor;
-		//return &s_networkSensor;
+	else if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_NetworkSensor) {
 		g_sensor = new NetworkSensor;
 		return g_sensor;
 	}
-	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_IntelSensor) {
+	else if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_IntelSensor) {
 #ifdef INTEL_SENSOR
-		//static IntelSensor s_intelSensor;
-		//return &s_intelSensor;
 		g_sensor = new IntelSensor;
 		return g_sensor;
 #else 
 		throw MLIB_EXCEPTION("Requires INTEL_SENSOR macro");
 #endif
 	}
-	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_RealSense) {
+	else if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_RealSense) {
 #ifdef REAL_SENSE
-		//static RealSenseSensor s_realSenseSensor;
-		//return &s_realSenseSensor;
 		g_sensor = RealSenseSensor;
 		return g_sensor;
 #else
 		throw MLIB_EXCEPTION("Requires Real Sense SDK and REAL_SENSE macro");
 #endif
 	}
-	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_StructureSensor) {
+	else if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_StructureSensor) {
 #ifdef STRUCTURE_SENSOR
-		//static StructureSensor s_structureSensor;
-		//return &s_structureSensor;
 		g_sensor = new StructureSensor;
 		return g_sensor;
 #else
 		throw MLIB_EXCEPTION("Requires STRUCTURE_SENSOR macro");
 #endif
 	}
-	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader) {
+	else if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader) {
 #ifdef SENSOR_DATA_READER
-		//static SensorDataReader s_sensorDataReader;
-		//return &s_sensorDataReader;
 		g_sensor = new SensorDataReader;
 		return g_sensor;
 #else
 		throw MLIB_EXCEPTION("Requires STRUCTURE_SENSOR macro");
 #endif
 	}
+	else if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiSensor) {
+#ifdef MULTI_SENSOR
+		
+		std::string s_filelist = GlobalAppState::get().s_binaryDumpSensorFileList;
+		std::istringstream ss(s_filelist);
+		std::string token;
+		std::vector<std::string> filelist;
+		vector<RGBDSensor*> sensors;
+		while (std::getline(ss, token, ',')) {
+			std::cout << "creating binary dump reader from " << token << "" << std::endl;
+			sensors.push_back(new BinaryDumpReader(token));
+		}
 
-	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiBinaryDumpReader) {
-#ifdef BINARY_DUMP_READER
-		g_sensor = new MultiBinaryDumpReader;
+		g_sensor = new MultiSensor(sensors);
 		return g_sensor;
 #else
-		throw MLIB_EXCEPTION("Requires BINARY_DUMP_READER macro");
+		throw MLIB_EXCEPTION("Requires MULTI_SENSOR macro");
 #endif
 	}
 
-
-
 	throw MLIB_EXCEPTION("unkown sensor id " + std::to_string(GlobalAppState::get().s_sensorIdx));
-
 	return NULL;
 }
 
@@ -274,19 +262,10 @@ LRESULT CALLBACK MsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, bo
 
 void StopScanningAndExtractIsoSurfaceMC(const std::string& filename)
 {
-	//g_sceneRep->debugHash();
-	//g_chunkGrid->debugCheckForDuplicates();
-
-	if (GlobalAppState::get().s_sensorIdx == 7) { //! hack for structure sensor
-		std::cout << "[marching cubes] stopped receiving frames from structure sensor" << std::endl;
-		getRGBDSensor()->stopReceivingFrames();
-	}
-
 	Timer t;
 
 	vec4f posWorld = g_sceneRep->getLastRigidTransform()*GlobalAppState::get().s_streamingPos; // trans lags one frame
 	vec3f p(posWorld.x, posWorld.y, posWorld.z);
-
 
 	g_marchingCubesHashSDF->clearMeshBuffer();
 	if (!GlobalAppState::get().s_streamingEnabled) {
@@ -410,10 +389,6 @@ void CALLBACK OnKeyboard( UINT nChar, bool bKeyDown, bool bAltDown, void* pUserC
 		case '8':
 			{
 				if (GlobalAppState::getInstance().s_recordData) {
-					if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_StructureSensor) { //! hack for structure sensor
-						std::cout << "[dump frames] stopped receiving frames from structure sensor" << std::endl;
-						getRGBDSensor()->stopReceivingFrames();
-					}
 					g_RGBDAdapter.saveRecordedFramesToFile(GlobalAppState::getInstance().s_recordDataFile);
 				} else {
 					std::cout << "Cannot save recording: enable \"s_recordData\" in parameter file" << std::endl;
@@ -455,7 +430,7 @@ void CALLBACK OnKeyboard( UINT nChar, bool bKeyDown, bool bAltDown, void* pUserC
 			g_sceneRep->debugHash();
 			if (g_chunkGrid)	g_chunkGrid->debugCheckForDuplicates();
 			break;
-		case 'D':
+		case 'L':
 			g_RGBDAdapter.getRGBDSensor()->savePointCloud("test.ply");
 			break;
 		case 'Y':
@@ -553,29 +528,8 @@ HRESULT CALLBACK OnD3D11CreateDevice(ID3D11Device* pd3dDevice, const DXGI_SURFAC
 		return S_FALSE;
 	}
 
-	//static init
-	// 15769 getRGBDSensor() should have been init here, 
-	// i.e., MultiBinaryDumpReader.createFirstConnected called.
-	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiBinaryDumpReader){
-#ifdef BINARY_DUMP_READER
-		std::cout << "Initializing CUDASensor and CUDAAdapter array" << std::endl;
-		// Let's do some sanity check:
-		auto multireader = dynamic_cast<MultiBinaryDumpReader*>(getRGBDSensor());
-		assert(multireader->getBinaryDumpReaders().size() <= MAX_SENSORS);
-		g_numSensors = multireader->getBinaryDumpReaders().size();
-		// Init the array of CUDASensor and CUDA adapter from array of RGBDSensor
-		for (size_t i = 0; i < multireader->getBinaryDumpReaders().size(); i++){
-			V_RETURN(g_RGBDAdapters[i].OnD3D11CreateDevice(pd3dDevice, &multireader->getBinaryDumpReaders()[i], GlobalAppState::get().s_adapterWidth, GlobalAppState::get().s_adapterHeight));
-			V_RETURN(g_CudaDepthSensors[i].OnD3D11CreateDevice(pd3dDevice, &g_RGBDAdapters[i]));
-		}
-#else
-		throw MLIB_EXCEPTION("Requires BINARY_DUMP_READER macro");
-#endif
-	}
-	else {
-		V_RETURN(g_RGBDAdapter.OnD3D11CreateDevice(pd3dDevice, getRGBDSensor(), GlobalAppState::get().s_adapterWidth, GlobalAppState::get().s_adapterHeight));
-		V_RETURN(g_CudaDepthSensor.OnD3D11CreateDevice(pd3dDevice, &g_RGBDAdapter));
-	}
+	V_RETURN(g_RGBDAdapter.OnD3D11CreateDevice(pd3dDevice, getRGBDSensor(), GlobalAppState::get().s_adapterWidth, GlobalAppState::get().s_adapterHeight));
+	V_RETURN(g_CudaDepthSensor.OnD3D11CreateDevice(pd3dDevice, &g_RGBDAdapter));
 
 	V_RETURN(DX11QuadDrawer::OnD3D11CreateDevice(pd3dDevice));
 	V_RETURN(DX11PhongLighting::OnD3D11CreateDevice(pd3dDevice));
@@ -622,10 +576,6 @@ HRESULT CALLBACK OnD3D11CreateDevice(ID3D11Device* pd3dDevice, const DXGI_SURFAC
 		GlobalAppState::get().s_RenderMode = 2;
 	}
 
-	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_StructureSensor) { // structure sensor
-		getRGBDSensor()->startReceivingFrames();
-	}
-
 	return hr;
 }
 
@@ -642,20 +592,8 @@ void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 	DX11PhongLighting::OnD3D11DestroyDevice();
 	GlobalAppState::get().OnD3D11DestroyDevice();
 
-	// 15769 Destory array properly ...
-	// Seems DXUT is destroyed after main(), we can't rely on getRGBDSensor() here ...
-	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiBinaryDumpReader){
-		std::cout << "Destroying CUDASensor and CUDAAdapter array" << std::endl;
-		/*auto multireader = dynamic_cast<MultiBinaryDumpReader*>(getRGBDSensor());*/
-		for (size_t i = 0; i < g_numSensors; i++){
-			g_CudaDepthSensors[i].OnD3D11DestroyDevice();
-			g_RGBDAdapters[i].OnD3D11DestroyDevice();
-		}
-	}
-	else {
-		g_CudaDepthSensor.OnD3D11DestroyDevice();
-		g_RGBDAdapter.OnD3D11DestroyDevice();
-	}
+	g_CudaDepthSensor.OnD3D11DestroyDevice();
+	g_RGBDAdapter.OnD3D11DestroyDevice();
 	g_RGBDRenderer.OnD3D11DestroyDevice();
 	g_CustomRenderTarget.OnD3D11DestroyDevice();
 
@@ -707,123 +645,20 @@ void CALLBACK OnD3D11ReleasingSwapChain( void* pUserContext )
 	g_DialogResourceManager.OnD3D11ReleasingSwapChain();
 }
 
-
-/**
-* 15769: Entry point for reconstruction procedure for multi binary dump.
-* Everything goes in here.
-*/
-void reconstruction_multi_dump(){
-	assert(GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiBinaryDumpReader);
-	assert(GlobalAppState::get().s_binaryDumpSensorUseTrajectory);
-
-#ifdef BINARY_DUMP_READER
-
-	auto multireader = dynamic_cast<MultiBinaryDumpReader*>(getRGBDSensor());
-	for (size_t i = 0; i < multireader->getBinaryDumpReaders().size(); i++){
-		std::cout << "Sensor " << i << std::endl;
-		std::cout << "[ frame " << g_RGBDAdapters[i].getFrameNumber() << " ] " << " [Free SDFBlocks " << g_sceneRep->getHeapFreeCount() << " ] " << std::endl;
-
-		mat4f transformation = mat4f::identity();
-
-		if (GlobalAppState::get().s_binaryDumpSensorUseTrajectory)
-		{
-			// The transformation is set here from the binary file directly. No need to run ICP below.
-			transformation = g_RGBDAdapters[i].getRigidTransform();
-
-			if (transformation[0] == -std::numeric_limits<float>::infinity()) {
-				std::cout << "INVALID FRAME" << std::endl;
-				return;
-			}
-		}
-
-		if (0 == i && g_RGBDAdapters[i].getFrameNumber() > 1) {
-			mat4f renderTransform = g_sceneRep->getLastRigidTransform();
-			//if we have a pre-recorded trajectory; use it as an init (if specificed to do so)
-			if (GlobalAppState::get().s_binaryDumpSensorUseTrajectory
-				&& GlobalAppState::get().s_binaryDumpSensorUseTrajectoryOnlyInit) {
-				assert(false);	// guess we should not land here
-				//deltaTransformEstimate = lastTransform.getInverse() * transformation;
-				mat4f deltaTransformEstimate = g_RGBDAdapters[i].getRigidTransform(-1).getInverse() * transformation;
-				renderTransform = renderTransform * deltaTransformEstimate;
-				g_sceneRep->setLastRigidTransformAndCompactify(renderTransform, g_CudaDepthSensors[i].getDepthCameraData());
-				//TODO if this is enabled there is a problem with the ray interval splatting
-			}
-
-			g_rayCast->render(g_sceneRep->getHashData(), g_sceneRep->getHashParams(), g_CudaDepthSensors[i].getDepthCameraData(), renderTransform);
-		}
-
-
-		if (GlobalAppState::getInstance().s_recordData) {
-			g_RGBDAdapters[i].recordTrajectory(transformation);
-		}
-
-		//
-		// 2. Perform Volumetric Integration with Voxel Hashing
-		//
-		if (transformation(0, 0) == -std::numeric_limits<float>::infinity()) {
-			std::cout << "!!! TRACKING LOST !!!" << std::endl;
-			GlobalAppState::get().s_reconstructionEnabled = false;
-			return;
-		}
-
-		if (GlobalAppState::get().s_streamingEnabled) {
-			PROFILE_CODE(profile.startTiming("Streaming"));
-			vec4f posWorld = transformation*GlobalAppState::getInstance().s_streamingPos; // trans laggs one frame *trans
-			vec3f p(posWorld.x, posWorld.y, posWorld.z);
-
-			g_chunkGrid->streamOutToCPUPass0GPU(p, GlobalAppState::get().s_streamingRadius, true, true);
-			g_chunkGrid->streamInToGPUPass1GPU(true);
-
-			//g_chunkGrid->debugCheckForDuplicates();
-			PROFILE_CODE(profile.stopTiming("Streaming"));
-		}
-
-		// perform integration
-		if (GlobalAppState::get().s_integrationEnabled) {
-			PROFILE_CODE(profile.startTiming("Integration"));
-
-			g_sceneRep->integrate(transformation, g_CudaDepthSensors[i].getDepthCameraData(), g_CudaDepthSensors[i].getDepthCameraParams(), g_chunkGrid->getBitMaskGPU());
-
-			//std::vector<const mat4f*> lastRigidTransforms;
-			//std::vector<const DepthCameraData*> depthCameraDatas;
-			//std::vector<const DepthCameraParams*> depthCameraParams;
-			//std::vector<unsigned int*> d_bitMasks;
-
-			//lastRigidTransforms.push_back(&transformation);
-			//depthCameraDatas.push_back(&(g_CudaDepthSensor.getDepthCameraData()));
-			//depthCameraParams.push_back(&(g_CudaDepthSensor.getDepthCameraParams()));
-			//d_bitMasks.push_back(g_chunkGrid->getBitMaskGPU());
-
-			//g_sceneRep->integrate_multisensor(lastRigidTransforms, depthCameraDatas, depthCameraParams, d_bitMasks);
-
-			PROFILE_CODE(profile.stopTiming("Integration"));
-		}
-		else {
-			//compactification is required for the raycast splatting
-			assert(false);	// guess we should not land here
-			g_sceneRep->setLastRigidTransformAndCompactify(transformation, g_CudaDepthSensor.getDepthCameraData());
-		}
-
-	} //end for
-#endif
-}
-
 /**
  * The entry point for the 3d reconstruction procedure
  */
 void reconstruction()
 {
-	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiBinaryDumpReader){
-		return reconstruction_multi_dump();
-	}
-
-	//only if binary dump
-	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader) {
+	//only if binary dump or multi-sensor (because currently multi sensor only supports multiple binary readers)
+	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader ||
+		GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiSensor) {
 		std::cout << "[ frame " << g_RGBDAdapter.getFrameNumber() << " ] " << " [Free SDFBlocks " << g_sceneRep->getHeapFreeCount() << " ] " << std::endl;
 	}
 
 	mat4f transformation = mat4f::identity();
-	if ((GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader) 
+	if ((GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader ||
+		GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiSensor)
 		&& GlobalAppState::get().s_binaryDumpSensorUseTrajectory) {
 
 		// The transformation is set here from the binary file directly. No need to run ICP below.
@@ -841,11 +676,12 @@ void reconstruction()
 	//
 #pragma region ignored
 
-	if (g_RGBDAdapter.getFrameNumber() > 1) {
+	if (true) {
 		mat4f renderTransform = g_sceneRep->getLastRigidTransform();
 		
 		//if we have a pre-recorded trajectory; use it as an init (if specificed to do so)
-		if ((GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader)
+		if ((GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader ||
+			GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiSensor)
 			&& GlobalAppState::get().s_binaryDumpSensorUseTrajectory
 			&& GlobalAppState::get().s_binaryDumpSensorUseTrajectoryOnlyInit) {
 			//deltaTransformEstimate = lastTransform.getInverse() * transformation;
@@ -867,17 +703,16 @@ void reconstruction()
 		}
 		else
 		{
-			if (!GlobalAppState::get().s_trackingEnabled) {
+			if (!GlobalAppState::get().s_trackingEnabled || g_RGBDAdapter.getFrameNumber() == 1) {
 				transformation.setIdentity();
 			}
-
 			else if (
-				(GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader)
+				(GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader ||
+				 GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiSensor)
 				&& GlobalAppState::get().s_binaryDumpSensorUseTrajectory
 				&& !GlobalAppState::get().s_binaryDumpSensorUseTrajectoryOnlyInit) {
 				//actually: nothing to do here; transform is already set: just don't do icp and use pre-recorded trajectory
 			}
-
 			else {
 				mat4f lastTransform = g_sceneRep->getLastRigidTransform();
 				mat4f deltaTransformEstimate = mat4f::identity();
@@ -919,6 +754,8 @@ void reconstruction()
 		}
 	}
 #pragma endregion
+
+	std::cout << transformation << std::endl;
 
 	if (GlobalAppState::getInstance().s_recordData) {
 		g_RGBDAdapter.recordTrajectory(transformation);
@@ -1010,26 +847,10 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	// if we have received any valid new depth data we may need to draw
 	// 15769 Process the whole array of CudaSensor
 	HRESULT bGotDepth = S_OK;
-	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiBinaryDumpReader){
-#ifdef BINARY_DUMP_READER
-		// std::cout << "Processing CUDASensor and CUDAAdapter array in FrameRender" << std::endl;
-		auto multireader = dynamic_cast<MultiBinaryDumpReader*>(getRGBDSensor());
-		for (size_t i = 0; i < multireader->getBinaryDumpReaders().size(); i++){
-			bGotDepth |= g_CudaDepthSensors[i].process(pd3dImmediateContext);
-			// Filtering
-			g_CudaDepthSensors[i].setFiterDepthValues(GlobalAppState::get().s_depthFilter, GlobalAppState::get().s_depthSigmaD, GlobalAppState::get().s_depthSigmaR);
-			g_CudaDepthSensors[i].setFiterIntensityValues(GlobalAppState::get().s_colorFilter, GlobalAppState::get().s_colorSigmaD, GlobalAppState::get().s_colorSigmaR);
-		}
-#else 
-		throw MLIB_EXCEPTION("Requires BINARY_DUMP_READER macro");
-#endif
-	}
-	else {
-		bGotDepth = g_CudaDepthSensor.process(pd3dImmediateContext);
-		// Filtering
-		g_CudaDepthSensor.setFiterDepthValues(GlobalAppState::get().s_depthFilter, GlobalAppState::get().s_depthSigmaD, GlobalAppState::get().s_depthSigmaR);
-		g_CudaDepthSensor.setFiterIntensityValues(GlobalAppState::get().s_colorFilter, GlobalAppState::get().s_colorSigmaD, GlobalAppState::get().s_colorSigmaR);
-	}
+	bGotDepth = g_CudaDepthSensor.process(pd3dImmediateContext);
+	// Filtering
+	g_CudaDepthSensor.setFiterDepthValues(GlobalAppState::get().s_depthFilter, GlobalAppState::get().s_depthSigmaD, GlobalAppState::get().s_depthSigmaR);
+	g_CudaDepthSensor.setFiterIntensityValues(GlobalAppState::get().s_colorFilter, GlobalAppState::get().s_colorSigmaD, GlobalAppState::get().s_colorSigmaR);
 
 	HRESULT hr = S_OK;
 

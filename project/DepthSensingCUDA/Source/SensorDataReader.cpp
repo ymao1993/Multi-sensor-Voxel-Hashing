@@ -73,16 +73,16 @@ HRESULT SensorDataReader::createFirstConnected()
 	return S_OK;
 }
 
-HRESULT SensorDataReader::processDepth()
+HRESULT SensorDataReader::process()
 {
 	if (m_currFrame >= m_numFrames)
 	{
-		GlobalAppState::get().s_playData = false;
+		m_bCompleted = true;
 		std::cout << "binary dump sequence complete - press space to run again" << std::endl;
 		m_currFrame = 0;
 	}
 
-	if (GlobalAppState::get().s_playData) {
+	if (!m_bCompleted) {
 
 		float* depth = getDepthFloat();
 		//memcpy(depth, m_data.m_DepthImages[m_currFrame], sizeof(float)*getDepthWidth()*getDepthHeight());

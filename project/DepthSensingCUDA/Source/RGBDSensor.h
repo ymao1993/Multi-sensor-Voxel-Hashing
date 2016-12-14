@@ -34,11 +34,8 @@ public:
 	//! Connected to Depth Sensor
 	virtual HRESULT createFirstConnected() = 0;
 
-	//! Processes the depth data 
-	virtual HRESULT processDepth() = 0;
-
-	//! Processes the color data
-	virtual HRESULT processColor() = 0;
+	//! Process the data for next frame
+	virtual HRESULT process() = 0;
 
 	//! Returns the sensor name
 	virtual std::string getSensorName() const = 0;
@@ -46,58 +43,46 @@ public:
 	//! Toggles the near-mode if available
 	virtual HRESULT toggleNearMode();
 
-	//! Get the intrinsic camera matrix of the depth sensor
-	const mat4f& getDepthIntrinsics() const;
-	const mat4f& getDepthIntrinsicsInv() const;
-
-	//! Get the intrinsic camera matrix of the depth sensor
-	const mat4f& getColorIntrinsics() const;
-	const mat4f& getColorIntrinsicsInv() const;
-	const mat4f& getDepthExtrinsics() const;
-	const mat4f& getDepthExtrinsicsInv() const;
-	const mat4f& getColorExtrinsics() const;
-	const mat4f& getColorExtrinsicsInv() const;
-
-	void initializeDepthIntrinsics(float fovX, float fovY, float centerX, float centerY);
-	void initializeColorIntrinsics(float fovX, float fovY, float centerX, float centerY);
-
-	void initializeDepthExtrinsics(const Matrix3f& R, const Vector3f& t);
-	void initializeColorExtrinsics(const Matrix3f& R, const Vector3f& t);
-	void initializeDepthExtrinsics(const mat4f& m);
-	void initializeColorExtrinsics(const mat4f& m);
-
-	void incrementRingbufIdx();
+	//! Get the intrinsic & extrinsic camera matrix of the sensor
+	virtual const mat4f& getDepthIntrinsics() const;
+	virtual const mat4f& getDepthIntrinsicsInv() const;
+	virtual const mat4f& getColorIntrinsics() const;
+	virtual const mat4f& getColorIntrinsicsInv() const;
+	virtual const mat4f& getDepthExtrinsics() const;
+	virtual const mat4f& getDepthExtrinsicsInv() const;
+	virtual const mat4f& getColorExtrinsics() const;
+	virtual const mat4f& getColorExtrinsicsInv() const;
 
 	//! gets the pointer to depth array
-	float*			getDepthFloat();
-	const float*	getDepthFloat() const;
+	virtual float*			getDepthFloat();
+	virtual const float*	getDepthFloat() const;
 
 	//! gets the pointer to color array
-	vec4uc*			getColorRGBX();
-	const vec4uc*	getColorRGBX() const;
+	virtual vec4uc*			getColorRGBX();
+	virtual const vec4uc*	getColorRGBX() const;
 
-	unsigned int getColorWidth() const;
-	unsigned int getColorHeight() const;
-	unsigned int getDepthWidth() const;
-	unsigned int getDepthHeight() const;
+	virtual unsigned int getColorWidth() const;
+	virtual unsigned int getColorHeight() const;
+	virtual unsigned int getDepthWidth() const;
+	virtual unsigned int getDepthHeight() const;
 
 	virtual void reset(); 
 
 	//! saves the point cloud of the current frame to a file
-	void savePointCloud(const std::string& filename, const mat4f& transform = mat4f::identity()) const;
+	virtual void savePointCloud(const std::string& filename, const mat4f& transform = mat4f::identity()) const;
 
 	//! records the current frame to an internally
-	void recordFrame();
+	virtual void recordFrame();
 
 	//! records current transform
-	void recordTrajectory(const mat4f& transform);
+	virtual void recordTrajectory(const mat4f& transform);
 
 	//! accumulates
-	void recordPointCloud(const mat4f& transform = mat4f::identity());
-	void saveRecordedPointCloud(const std::string& filename);
+	virtual void recordPointCloud(const mat4f& transform = mat4f::identity());
+	virtual void saveRecordedPointCloud(const std::string& filename);
 
 	//! saves all previously recorded frames to file
-	void saveRecordedFramesToFile(const std::string& filename);
+	virtual void saveRecordedFramesToFile(const std::string& filename);
 
 	//! returns the current rigid transform; if not specified by the 'actual' sensor the identiy is returned
 	//  Rigid Transform transforms the target camera pose to the reference camera pose.
@@ -105,10 +90,21 @@ public:
 		return mat4f::identity();
 	}
 
-	virtual void startReceivingFrames() {}
-	virtual void stopReceivingFrames() {}
+	bool isCompleted() {
+		return m_bCompleted;
+	}
+
 
 protected:
+
+	void initializeDepthIntrinsics(float fovX, float fovY, float centerX, float centerY);
+	void initializeColorIntrinsics(float fovX, float fovY, float centerX, float centerY);
+	void initializeDepthExtrinsics(const Matrix3f& R, const Vector3f& t);
+	void initializeColorExtrinsics(const Matrix3f& R, const Vector3f& t);
+	void initializeDepthExtrinsics(const mat4f& m);
+	void initializeColorExtrinsics(const mat4f& m);
+
+	void incrementRingbufIdx();
 
 	unsigned int m_currentRingBufIdx;
 
@@ -141,8 +137,12 @@ protected:
 
 	bool   m_bNearMode;
 
+	// whether the capture session has completed
+	bool m_bCompleted;
+
 
 private:
+
 	void computePointCurrentPointCloud(PointCloudf& pc, const mat4f& transform = mat4f::identity()) const;
 	vec3f depthToSkeleton(unsigned int ux, unsigned int uy) const;
 	vec3f depthToSkeleton(unsigned int ux, unsigned int uy, float depth) const;

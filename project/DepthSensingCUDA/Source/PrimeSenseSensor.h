@@ -23,35 +23,27 @@ public:
 	PrimeSenseSensor();
 
 	//! Destructor; releases allocated ressources
-	~PrimeSenseSensor();
+	virtual ~PrimeSenseSensor() override;
 
 	//! Initializes the sensor
-	HRESULT createFirstConnected();
+	virtual HRESULT createFirstConnected() override;
 
 	//! Processes the depth data (and color)
-	HRESULT processDepth();
+	virtual HRESULT process() override;
 
-	HRESULT saveDepth(float *p_depth){return S_OK;};
-	
-
-	//! Processes the Kinect color data
-	HRESULT processColor()
-	{
-		HRESULT hr = S_OK;
-		return hr;
-	}
-
-	std::string getSensorName() const {
+	virtual std::string getSensorName() const override{
 		return "PrimeSense";
 	}
 
 	//! Toggles the Kinect to near-mode; default is far mode
-	HRESULT toggleNearMode()
+	virtual HRESULT toggleNearMode() override
 	{
 		// PrimeSense is always in near mode
 		return S_OK;
 	}
-	
+
+	HRESULT saveDepth(float *p_depth){return S_OK;};
+
 	//! Toggle enable auto white balance
 	HRESULT toggleAutoWhiteBalance()
 	{

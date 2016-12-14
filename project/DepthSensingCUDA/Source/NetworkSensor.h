@@ -60,39 +60,35 @@ public:
 		m_iFrame = 0;
 		packet_type_status = PacketType::SERVER_2_CLIENT_PROCESSED;
 	}
-	~NetworkSensor() {
+	
+	virtual ~NetworkSensor() override{
 		m_networkServer.close();
 	}
 
-	virtual void reset()
-	{
+	virtual void reset() override {
 		RGBDSensor::reset();
 		m_iFrame = 0;
 		packet_type_status = PacketType::SERVER_2_CLIENT_RESET;
 	}
 
-	void waitForConnection();
-
-	HRESULT createFirstConnected() {
+	virtual HRESULT createFirstConnected() override{
 		m_iFrame = 0;
 		waitForConnection();
 
 		return S_OK;
 	}
 
-	HRESULT processDepth();
+	virtual HRESULT process() override;
 
-	HRESULT processColor() {
-		return S_OK;
-	}
-
-	std::string getSensorName() const {
+	virtual std::string getSensorName() const override{
 		return "NetworkSensor";
 	}
 
-	mat4f getRigidTransform(int offset) const {
+	virtual mat4f getRigidTransform(int offset) const override{
 		return m_rigidTransform;
 	}
+
+	void waitForConnection();
 
 private:
 

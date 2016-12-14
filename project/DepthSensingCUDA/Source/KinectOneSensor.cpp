@@ -184,7 +184,7 @@ HRESULT KinectOneSensor::createFirstConnected()
 	return hr;
 }
 
-HRESULT KinectOneSensor::processDepth()
+HRESULT KinectOneSensor::process()
 {
 	IMultiSourceFrame* pMultiSourceFrame = NULL;
 	IDepthFrame* pDepthFrame = NULL;

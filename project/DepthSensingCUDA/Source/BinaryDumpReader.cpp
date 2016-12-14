@@ -16,31 +16,24 @@
 
 #include <conio.h>
 
-BinaryDumpReader::BinaryDumpReader()
+BinaryDumpReader::BinaryDumpReader(const std::string& filename)
 {
 	m_NumFrames = 0;
 	m_CurrFrame = 0;
 	m_bHasColorData = false;
-	//parameters are read from the calibration file
+	this->filename = filename;
 }
 
 BinaryDumpReader::~BinaryDumpReader()
 {
-	std::cout << "[15769] Destructing BinaryDumpReader() ..." << std::endl;
 	releaseData();
-}
-
-
-HRESULT BinaryDumpReader::createFirstConnected(){
-	std::string filename = GlobalAppState::get().s_binaryDumpSensorFile;
-	return this->createFirstConnected(filename);
 }
 
 /**
  * createFirstConnected
  * Load the binary data from disk, this includes color data, depth data and calibration matrices.
  */
-HRESULT BinaryDumpReader::createFirstConnected(std::string filename)
+HRESULT BinaryDumpReader::createFirstConnected()
 {
 	releaseData();
 
@@ -70,35 +63,31 @@ HRESULT BinaryDumpReader::createFirstConnected(std::string filename)
 	} else {
 		m_bHasColorData = false;
 	}
-
 	return S_OK;
 }
 
 /**
- * processDepth()
+ * process
  * read the next frame's depth and color data and store them into depth ring buffer and the current color buffer. 
  */
-HRESULT BinaryDumpReader::processDepth()
+HRESULT BinaryDumpReader::process()
 {
+	if (m_bCompleted) return S_FALSE;
+	m_CurrFrame++;
 	if(m_CurrFrame >= m_NumFrames)
 	{
-		GlobalAppState::get().s_playData = false;
-		std::cout << "binary dump sequence complete - press space to run again" << std::endl;
-		m_CurrFrame = 0;
+		m_bCompleted = true;
+		std::cout << "binary dump sequence '" << filename <<"' completed" << std::endl;
+		m_CurrFrame = -1;
 	}
 
-	if(GlobalAppState::get().s_playData) {
-
+	if (!m_bCompleted) {
 		float* depth = getDepthFloat();
 		memcpy(depth, m_data.m_DepthImages[m_CurrFrame], sizeof(float)*getDepthWidth()*getDepthHeight());
-
 		incrementRingbufIdx();
-
 		if (m_bHasColorData) {
 			memcpy(m_colorRGBX, m_data.m_ColorImages[m_CurrFrame], sizeof(vec4uc)*getColorWidth()*getColorHeight());
 		}
-
-		m_CurrFrame++;
 		return S_OK;
 	} else {
 		return S_FALSE;
@@ -107,7 +96,7 @@ HRESULT BinaryDumpReader::processDepth()
 
 void BinaryDumpReader::releaseData()
 {
-	m_CurrFrame = 0;
+	m_CurrFrame = -1;
 	m_bHasColorData = false;
 	m_data.deleteData();
 }

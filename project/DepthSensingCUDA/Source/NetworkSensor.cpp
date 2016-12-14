@@ -60,7 +60,7 @@ void NetworkSensor::waitForConnection()
 
 }
 
-HRESULT NetworkSensor::processDepth()
+HRESULT NetworkSensor::process()
 {
 	int byte_size_received = 0;
 

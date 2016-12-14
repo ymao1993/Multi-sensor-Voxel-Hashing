@@ -19,10 +19,19 @@ public:
 	//! Constructor; allocates CPU memory and creates handles
 
 	//! Destructor; releases allocated ressources
-	~IntelSensor();
+	virtual ~IntelSensor() override;
 
 	//! Initializes the sensor
-	HRESULT createFirstConnected();
+	virtual HRESULT createFirstConnected() override;
+
+	//! process the data for next frame
+	virtual HRESULT process() override;
+
+	virtual std::string getSensorName() const override{
+		return "IntelSensor";
+	}
+
+private:
 
 	//! gets the next depth frame
 	HRESULT processDepth();
@@ -31,12 +40,7 @@ public:
 	//! maps the color to depth data
 	HRESULT processColor();
 
-	std::string getSensorName() const {
-		return "IntelSensor";
-	}
-	
 
-private:
 	DSAPI*			m_sensor;
 	DSThird*		m_colorSensor;
 	DSHardware*		m_hardware;

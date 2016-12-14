@@ -156,6 +156,12 @@ HRESULT KinectSensor::createFirstConnected()
 	return hr;
 }
 
+HRESULT KinectSensor::process()
+{
+	if (processDepth() != S_OK) return S_FALSE;
+	if (processColor() != S_OK) return S_FALSE;
+}
+
 HRESULT KinectSensor::processDepth()
 {
 	HRESULT hr = S_OK;

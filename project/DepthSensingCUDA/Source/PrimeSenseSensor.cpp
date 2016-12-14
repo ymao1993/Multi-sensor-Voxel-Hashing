@@ -171,7 +171,7 @@ HRESULT PrimeSenseSensor::createFirstConnected()
 	return hr;
 }
 
-HRESULT PrimeSenseSensor::processDepth()
+HRESULT PrimeSenseSensor::process()
 {
 
 	HRESULT hr = S_OK;

@@ -19,7 +19,6 @@
 #include "NetworkSensor.h"
 #include "IntelSensor.h"
 #include "RealSenseSensor.h"
-#include "MultiBinaryDumpReader.h"
 
 
 #include "DXUT.h"
