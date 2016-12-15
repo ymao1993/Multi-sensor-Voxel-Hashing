@@ -548,7 +548,7 @@ public:
 		return s_terminateThread;
 	}
 
-	private:
+	public:
 
 	//-------------------------------------------------------
 	// Helper

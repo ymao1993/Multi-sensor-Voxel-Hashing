@@ -102,6 +102,8 @@
 	X(bool, s_streamingAdaptive)\
 	X(unsigned int, s_streamingThreshold) \
 	X(unsigned int, s_renderFrequency) \
+	X(bool, s_skipFrameEnabled) \
+	X(unsigned int, s_skipFrameThreshold)
 
 
 #ifndef VAR_NAME

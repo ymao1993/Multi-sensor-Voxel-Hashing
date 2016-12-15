@@ -151,8 +151,9 @@ public:
 	void schedule_and_execute() override{
 		assert(!requests_.empty());
 		size_t count_integrated = 0;
-		// iteratively select the frame request that's closest to the camera pos in hash table
 		while (!requests_.empty()){
+
+			// Opt1: Select a frame that's closest to the scene's last transformation
 			mat4f last_transform = g_sceneRep->getLastRigidTransform();
 			vec4f last_posWorld = last_transform*GlobalAppState::getInstance().s_streamingPos;
 			vec4f req_posWorld = requests_[0].transformation*GlobalAppState::getInstance().s_streamingPos;
@@ -168,6 +169,25 @@ public:
 				}
 			}
 
+			auto req = requests_[closest_idx];
+
+			// Opt2: Heat-based skipping
+			if (GlobalAppState::get().s_skipFrameEnabled){
+				auto transformation = req.transformation;
+				vec4f posWorld = transformation*GlobalAppState::getInstance().s_streamingPos; // trans laggs one frame *trans
+				vec3f p(posWorld.x, posWorld.y, posWorld.z);
+				vec3i chunkIdx = g_chunkGrid->worldToChunks(p);
+				incrementHeat(chunkIdx.x, chunkIdx.y, chunkIdx.z);
+
+				if (getHeat(chunkIdx.x, chunkIdx.y, chunkIdx.z) > GlobalAppState::get().s_skipFrameThreshold){
+					// hot enough, skip!
+					std::cout << "Skipping " << req.tag << std::endl;
+					requests_.erase(requests_.begin() + closest_idx);
+					continue;
+				}
+
+			}
+
 			execute_frame_request(requests_[closest_idx]);
 
 			if (++count_integrated >= GlobalAppState::get().s_renderFrequency || 1 == requests_.size()){
@@ -179,6 +199,39 @@ public:
 			requests_.erase(requests_.begin() + closest_idx);
 		}
 		g_bProcessSensor = requests_.empty();
+	}
+
+private:
+	struct key_hash {
+		size_t operator()(const std::tuple<int, int, int>& k){
+			int x, y, z;
+			std::tie(x, y, z) = k;
+			return std::hash<int>{}(x) ^ std::hash<int>{}(y) ^ std::hash<int>{}(z);
+		}
+	};
+	std::unordered_map<std::tuple<int, int, int>, size_t, key_hash> heat_map_;
+	void incrementHeat(int x, int y, int z){
+		auto key = std::make_tuple(x, y, z);
+		if (heat_map_.end() == heat_map_.find(key)){
+			heat_map_[key] = 1;
+		}
+		else{
+			heat_map_[key]++;
+		}
+	}
+
+	size_t getHeat(int x, int y, int z){
+		auto key = std::make_tuple(x, y, z);
+		if (heat_map_.end() == heat_map_.find(key)){
+			return 0;
+		}
+		else{
+			return heat_map_[key];
+		}
+	}
+
+	void decayHeat(){
+		// TODO ....
 	}
 };
 

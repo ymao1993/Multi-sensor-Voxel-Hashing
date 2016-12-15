@@ -1,6 +1,9 @@
 // 0=Kinect; 1=PrimeSense; 2=KinectOne; 3=BinaryDumpReader; 4=NetworkSensor; 5=IntelSensor; 6=RealSense; 7=StructureSensor; 8=SensorDataReader; 9 = MultiSensor
 s_sensorIdx = 9;
 
+s_skipFrameEnabled = true;	// Enable to allow skipping frames
+s_skipFrameThreshold = 100;
+
 s_renderFrequency = 3; // Render frequency: how many frame integrations between two render?
 
 //s_windowWidth = 1280;		//render window width
