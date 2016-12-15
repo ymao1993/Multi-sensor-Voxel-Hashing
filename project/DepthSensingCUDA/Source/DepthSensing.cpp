@@ -155,26 +155,43 @@ public:
 	void schedule_and_execute() override{
 		assert(!requests_.empty());
 		size_t count_integrated = 0;
+
+		// Opt0: Optional naive reordering
+
+		if (GlobalAppState::get().s_naiveReorder)
+		{
+			std::sort(requests_.begin(), requests_.end(), [](FrameRequest &a, FrameRequest &b){return a.sensor_id < b.sensor_id; });
+		}
+
 		while (!requests_.empty()){
 			num_processed_frames_++;
+			size_t chosen_frame = 0;
 
-			// Opt1: Select a frame that's closest to the scene's last transformation
-			mat4f last_transform = g_sceneRep->getLastRigidTransform();
-			vec4f last_posWorld = last_transform*GlobalAppState::getInstance().s_streamingPos;
-			vec4f req_posWorld = requests_[0].transformation*GlobalAppState::getInstance().s_streamingPos;
-			float closest_dist = vec4f::dist(last_posWorld, req_posWorld);
-			size_t closest_idx = 0;
+			// Opt1: Optional smart reordering:
+			// Select a frame that's closest to the scene's last transformation
+			if (!GlobalAppState::get().s_naiveReorder && GlobalAppState::get().s_smartReorder){
+				mat4f last_transform = g_sceneRep->getLastRigidTransform();
+				vec4f last_posWorld = last_transform*GlobalAppState::getInstance().s_streamingPos;
+				vec4f req_posWorld = requests_[0].transformation*GlobalAppState::getInstance().s_streamingPos;
+				float closest_dist = vec4f::dist(last_posWorld, req_posWorld);
+				size_t closest_idx = 0;
 
-			for (size_t i = 1; i < requests_.size(); i++){
-				vec4f req_posWorld = requests_[i].transformation * GlobalAppState::getInstance().s_streamingPos;
-				float d = vec4f::dist(last_posWorld, req_posWorld);
-				if (d < closest_dist){
-					closest_dist = d;
-					closest_idx = i;
+				for (size_t i = 1; i < requests_.size(); i++){
+					vec4f req_posWorld = requests_[i].transformation * GlobalAppState::getInstance().s_streamingPos;
+					float d = vec4f::dist(last_posWorld, req_posWorld);
+					if (d < closest_dist){
+						closest_dist = d;
+						closest_idx = i;
+					}
 				}
+
+			}
+			else{
+				// Do nothing, equivalent to round robin
+				chosen_frame = 0;
 			}
 
-			auto req = requests_[closest_idx];
+			auto req = requests_[chosen_frame];
 
 			// Opt2: Heat-based skipping
 			if (GlobalAppState::get().s_skipFrameEnabled){
@@ -186,23 +203,24 @@ public:
 				if (getHeat(chunkIdx.x, chunkIdx.y, chunkIdx.z) > GlobalAppState::get().s_skipFrameThreshold && 1 < requests_.size()){
 					// hot enough, skip! (but let it go if the last frame)
 					std::cout << "Skipping " << req.tag << std::endl;
-					requests_.erase(requests_.begin() + closest_idx);
+					requests_.erase(requests_.begin() + chosen_frame);
 					continue;
 				}
 
 				incrementHeat(chunkIdx.x, chunkIdx.y, chunkIdx.z);
 			}
 
-			execute_frame_request(requests_[closest_idx]);
+			execute_frame_request(requests_[chosen_frame]);
 
 			if (++count_integrated >= GlobalAppState::get().s_renderFrequency || 1 == requests_.size()){
-				std::cout << "Rendering from sensor " << std::to_string(requests_[closest_idx].sensor_id) << std::endl;
-				this->render(*requests_[closest_idx].p_depthCameraData, requests_[closest_idx].transformation);
-				requests_.erase(requests_.begin() + closest_idx);
+				std::cout << "Rendering from sensor " << std::to_string(requests_[chosen_frame].sensor_id) << std::endl;
+				this->render(*requests_[chosen_frame].p_depthCameraData, requests_[chosen_frame].transformation);
+				requests_.erase(requests_.begin() + chosen_frame);
 				break;
 			}
-			requests_.erase(requests_.begin() + closest_idx);
+			requests_.erase(requests_.begin() + chosen_frame);
 		}
+
 		g_bProcessSensor = requests_.empty();
 
 		decayHeat();

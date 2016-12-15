@@ -1,11 +1,16 @@
 // 0=Kinect; 1=PrimeSense; 2=KinectOne; 3=BinaryDumpReader; 4=NetworkSensor; 5=IntelSensor; 6=RealSense; 7=StructureSensor; 8=SensorDataReader; 9 = MultiSensor
-s_sensorIdx = 3;
+s_sensorIdx = 9;
 
 // optimization
 s_enableBatchBuffering = true;
 s_batchBufferingSize = 1;
 s_skipFrameEnabled = true;	// Enable to allow skipping frames
 s_skipFrameThreshold = 50.0f;
+s_naiveReorder = true;
+s_smartReorder = false;	// only effective when s_naiveReorder is false
+
+s_streamingAdaptive = true;	// Adaptively ON/OFF streaming based on hash table density
+s_streamingThreshold = 1000;	// Threshold to ON/FF streaming
 
 s_renderFrequency = 1; // Render frequency: how many frame integrations between two render?
 
@@ -69,7 +74,7 @@ s_SDFUseGradients 		= false;		//analytic gradients for rendering
 // s_binaryDumpSensorFile = "Dump/nsh_long_4.sensor"
 // s_binaryDumpSensorFile = "Dump/nsh_long_5.sensor"
 
-s_binaryDumpSensorFileList = "Dump/nsh_long_3.sensor,Dump/nsh_long_4.sensor,Dump/nsh_long_5.sensor"
+s_binaryDumpSensorFileList = "Dump/nsh_long_2.sensor,Dump/nsh_long_5.sensor"
 
 s_binaryDumpSensorUseTrajectory = true;				    // use the recorded trajectory form the binary dump as the our rigid transformation estimation.
 s_binaryDumpSensorUseTrajectoryOnlyInit = false;	    // This option is valid only if the previous one is set true. If it is false, then for every frame we will be using the precomputed traj instead of performing ICP. Otherwise we will only be using the precomputed traj for the first frame.
@@ -123,8 +128,7 @@ s_streamingInitialChunkListSize = 2000;
 s_streamingRadius = 4.0f;						// Radius of the active region, depending on DepthMin and DepthMax 
 s_streamingPos = 0.0f 0.0f 3.0f 1.0f;			// Center of the active region in camera space, depending on DepthMin and DepthMax
 s_streamingOutParts = 100;						// number of frames required to sweep through the entire hash
-s_streamingAdaptive = true;	// Adaptively ON/OFF streaming based on hash table density
-s_streamingThreshold = 1000;	// Threshold to ON/FF streaming
+
 
 
 //recording of the input data

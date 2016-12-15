@@ -103,7 +103,9 @@
 	X(unsigned int, s_streamingThreshold) \
 	X(unsigned int, s_renderFrequency) \
 	X(bool, s_skipFrameEnabled) \
-	X(float, s_skipFrameThreshold)
+	X(float, s_skipFrameThreshold) \
+	X(bool, s_naiveReorder)\
+	X(bool, s_smartReorder)
 
 
 #ifndef VAR_NAME
