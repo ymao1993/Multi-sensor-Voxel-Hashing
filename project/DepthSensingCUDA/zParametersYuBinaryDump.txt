@@ -1,9 +1,9 @@
 // 0=Kinect; 1=PrimeSense; 2=KinectOne; 3=BinaryDumpReader; 4=NetworkSensor; 5=IntelSensor; 6=RealSense; 7=StructureSensor; 8=SensorDataReader; 9 = MultiSensor
-s_sensorIdx = 9;
+s_sensorIdx = 3;
 
 // optimization
 s_enableBatchBuffering = true;
-s_batchBufferingSize = 2;
+s_batchBufferingSize = 1;
 s_skipFrameEnabled = true;	// Enable to allow skipping frames
 s_skipFrameThreshold = 50.0f;
 
@@ -51,7 +51,7 @@ s_SDFRayThresSampleDistFactor = 50.5f;	//(don't touch) s_SDFRayThresSampleDist =
 s_SDFRayThresDistFactor = 50.0f;		//(don't touch) s_SDFRayThresDist = s_SDFRayThresSampleDistFactor*s_rayIncrement;
 s_SDFUseGradients 		= false;		//analytic gradients for rendering
 
-// s_binaryDumpSensorFile = "Dump/simple.sensor";
+ s_binaryDumpSensorFile = "Dump/simple.sensor";
 // s_binaryDumpSensorFile = "Dump/simple_new.sensor";
 // s_binaryDumpSensorFile = "Dump/nsh4224_dynamic.sensor";
 // s_binaryDumpSensorFile = "Dump/nsh4224_static.sensor";
@@ -69,7 +69,7 @@ s_SDFUseGradients 		= false;		//analytic gradients for rendering
 // s_binaryDumpSensorFile = "Dump/nsh_long_4.sensor"
 // s_binaryDumpSensorFile = "Dump/nsh_long_5.sensor"
 
-s_binaryDumpSensorFileList = "Dump/nsh_long_1.sensor,Dump/nsh_long_2.sensor"
+s_binaryDumpSensorFileList = "Dump/nsh_long_3.sensor,Dump/nsh_long_4.sensor,Dump/nsh_long_5.sensor"
 
 s_binaryDumpSensorUseTrajectory = true;				    // use the recorded trajectory form the binary dump as the our rigid transformation estimation.
 s_binaryDumpSensorUseTrajectoryOnlyInit = false;	    // This option is valid only if the previous one is set true. If it is false, then for every frame we will be using the precomputed traj instead of performing ICP. Otherwise we will only be using the precomputed traj for the first frame.

@@ -91,9 +91,12 @@ public:
 
 protected:
 	std::vector<FrameRequest> requests_;
+	size_t num_processed_frames_ = 0;
 
 	void render(const DepthCameraData& depthCameraData, const mat4f& renderTransform){
-		g_rayCast->render(g_sceneRep->getHashData(), g_sceneRep->getHashParams(), depthCameraData, renderTransform);
+		// g_rayCast->render(g_sceneRep->getHashData(), g_sceneRep->getHashParams(), depthCameraData, renderTransform);
+		g_rayCast->render(g_sceneRep->getHashData(), g_sceneRep->getHashParams(), depthCameraData, mat4f::identity());
+
 	}
 
 	void execute_frame_request(const FrameRequest& req){
@@ -119,7 +122,7 @@ protected:
 
 		if (GlobalAppState::get().s_streamingEnabled) {
 			if (!GlobalAppState::get().s_streamingAdaptive || g_sceneRep->getHeapFreeCount() < GlobalAppState::get().s_streamingThreshold){
-				PROFILE_CODE(profile.startTiming("Streaming"));
+				PROFILE_CODE(profile.startTiming("Streaming", num_processed_frames_));
 				vec4f posWorld = transformation*GlobalAppState::getInstance().s_streamingPos; // trans laggs one frame *trans
 				vec3f p(posWorld.x, posWorld.y, posWorld.z);
 
@@ -127,20 +130,21 @@ protected:
 				g_chunkGrid->streamInToGPUPass1GPU(true);
 
 				//g_chunkGrid->debugCheckForDuplicates();
-				PROFILE_CODE(profile.stopTiming("Streaming"));
+				PROFILE_CODE(profile.stopTiming("Streaming", num_processed_frames_));
 			}
 		}
 
 		// perform integration
 		if (GlobalAppState::get().s_integrationEnabled) {
-			PROFILE_CODE(profile.startTiming("Integration"));
+			PROFILE_CODE(profile.startTiming("Integration", num_processed_frames_));
 			g_sceneRep->integrate(transformation, *req.p_depthCameraData, *req.p_depthCameraParams, g_chunkGrid->getBitMaskGPU());
-			PROFILE_CODE(profile.stopTiming("Integration"));
+			PROFILE_CODE(profile.stopTiming("Integration", num_processed_frames_));
 		}
 		else {
 			//compactification is required for the raycast splatting
 			assert(false);	// guess we should not land here
 			g_sceneRep->setLastRigidTransformAndCompactify(transformation, g_CudaDepthSensor.getDepthCameraData());
+
 		}
 	}
 };
@@ -152,6 +156,7 @@ public:
 		assert(!requests_.empty());
 		size_t count_integrated = 0;
 		while (!requests_.empty()){
+			num_processed_frames_++;
 
 			// Opt1: Select a frame that's closest to the scene's last transformation
 			mat4f last_transform = g_sceneRep->getLastRigidTransform();
@@ -178,8 +183,8 @@ public:
 				vec3f p(posWorld.x, posWorld.y, posWorld.z);
 				vec3i chunkIdx = g_chunkGrid->worldToChunks(p);
 
-				if (getHeat(chunkIdx.x, chunkIdx.y, chunkIdx.z) > GlobalAppState::get().s_skipFrameThreshold){
-					// hot enough, skip!
+				if (getHeat(chunkIdx.x, chunkIdx.y, chunkIdx.z) > GlobalAppState::get().s_skipFrameThreshold && 1 < requests_.size()){
+					// hot enough, skip! (but let it go if the last frame)
 					std::cout << "Skipping " << req.tag << std::endl;
 					requests_.erase(requests_.begin() + closest_idx);
 					continue;
@@ -234,7 +239,7 @@ private:
 
 	void decayHeat(){
 		for (auto iter : heat_map_){
-			iter.second = (size_t)(0.9f * iter.second);
+			iter.second = 0.9f * iter.second;
 		}
 	}
 };
@@ -922,14 +927,12 @@ void reconstruction()
 {
 	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiSensor)
 	{
-		reconstruction_multi_dump();
+		return reconstruction_multi_dump();
 	}
 
 	//only if binary dump or multi-sensor (because currently multi sensor only supports multiple binary readers)
-	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader ||
-		GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiSensor) {
+	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader) {
 		std::cout << "[ frame " << g_RGBDAdapter.getFrameNumber() << " ] " << " [Free SDFBlocks " << g_sceneRep->getHeapFreeCount() << " ] " << std::endl;
-		return reconstruction_multi_dump();
 	}
 
 	mat4f transformation = mat4f::identity();
