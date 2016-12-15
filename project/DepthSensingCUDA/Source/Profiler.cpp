@@ -86,6 +86,7 @@ void Profiler::generateTimingStats()
 			entry.totalTime += elapsed_time[i];
 		}
 		entry.averageTime = ((double)entry.totalTime) / elapsed_time.size();
+		entry.length = elapsed_time.size();
 		timingEntries.push_back(entry);
 	}
 	std::sort(timingEntries.begin(), timingEntries.end(), TimingStatsEntryCompare);
@@ -95,9 +96,9 @@ void Profiler::generateTimingStats()
 void Profiler::printTimingStats()
 {
 	printf("=================Time Stats=================\n");
-	printf("id\tbucket name\ttotal time\taverage time\n");
+	printf("id\tbucket name\ttotal time\taverage time\tlength\n");
 	for (int i = 0; i < timingEntries.size(); i++)
-		printf("[%d]\t%s\t%.2lfms\t%.4lfms\n", i + 1, timingEntries[i].token.c_str(), timingEntries[i].totalTime, timingEntries[i].averageTime);
+		printf("[%d]\t%s\t%.2lfms\t%.4lfms\t%d\n", i + 1, timingEntries[i].token.c_str(), timingEntries[i].totalTime, timingEntries[i].averageTime, timingEntries[i].length);
 	printf("===================END======================\n");
 	return;
 }
@@ -164,10 +165,10 @@ void Profiler::dumpToFolderTimingLogs(const std::string& folderPath)
 	file.open(folderPath + "/" + prefix + "stats.txt");
 	assert(file.is_open());
 	file << "# stats" << endl;
-	file << "# token average_time total_time" << endl;
+	file << "# token average_time total_time length" << endl;
 	for (int i = 0; i < timingEntries.size(); i++) {
 		const TimingStatsEntry& entry = timingEntries[i];
-		file << entry.token << " " << entry.averageTime << " " << entry.totalTime << endl;
+		file << entry.token << " " << entry.averageTime << " " << entry.totalTime << " " << entry.length << endl;
 	}
 	file.close();
 	return;

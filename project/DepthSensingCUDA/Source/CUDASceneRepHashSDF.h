@@ -66,7 +66,17 @@ public:
 		bindInputDepthColorTextures(depthCameraData);
 	}
 
+#define ENABLE_PROFILE
+#ifdef ENABLE_PROFILE
+#define PROFILE_CODE(CODE) CODE
+#else
+#define PROFILE_CODE(CODE)
+#endif
+
 	void integrate(const mat4f& lastRigidTransform, const DepthCameraData& depthCameraData, const DepthCameraParams& depthCameraParams, unsigned int* d_bitMask) {
+
+		// hotfix
+		bindDepthCameraTextures(depthCameraData);
 
 		setLastRigidTransform(lastRigidTransform);
 
@@ -74,15 +84,24 @@ public:
 		m_hashData.updateParams(m_hashParams);
 
 		//allocate all hash blocks which are corresponding to depth map entries
+		PROFILE_CODE(profile.startTiming("alloc", m_numIntegratedFrames));
 		alloc(depthCameraData, depthCameraParams, d_bitMask);
+		PROFILE_CODE(profile.stopTiming("alloc", m_numIntegratedFrames));
+
 
 		//generate a linear hash array with only occupied entries
+		PROFILE_CODE(profile.startTiming("compactifyHashEntries", m_numIntegratedFrames));
 		compactifyHashEntries(depthCameraData);
+		PROFILE_CODE(profile.stopTiming("compactifyHashEntries", m_numIntegratedFrames));
 
 		//volumetrically integrate the depth data into the depth SDFBlocks
+		PROFILE_CODE(profile.startTiming("integrateDepthMap", m_numIntegratedFrames));
 		integrateDepthMap(depthCameraData, depthCameraParams);
+		PROFILE_CODE(profile.stopTiming("integrateDepthMap", m_numIntegratedFrames));
 
+		PROFILE_CODE(profile.startTiming("garbageCollect", m_numIntegratedFrames));
 		garbageCollect(depthCameraData);
+		PROFILE_CODE(profile.stopTiming("garbageCollect", m_numIntegratedFrames));
 
 		m_numIntegratedFrames++;
 	}

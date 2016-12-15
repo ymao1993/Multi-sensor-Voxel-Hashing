@@ -42,6 +42,7 @@ class Profiler
 		std::string token;
 		double totalTime;
 		double averageTime;
+		size_t length = 0;
 		TimingStatsEntry(const std::string& token) :token(token), totalTime(0), averageTime(0) {}
 	};
 public:
