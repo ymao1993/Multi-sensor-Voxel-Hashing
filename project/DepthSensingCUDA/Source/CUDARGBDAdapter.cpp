@@ -99,12 +99,7 @@ HRESULT CUDARGBDAdapter::OnD3D11CreateDevice(ID3D11Device* device, RGBDSensor* R
 	m_width = width;
 	m_height = height;
 	updateCameraMatrices();
-	allocateGPUBuffers(&d_colorMapRaw,
-		&d_colorMapFloat4,
-		&d_colorMapResampledFloat4,
-		&d_depthMapFloat,
-		&d_depthMapResampledFloat);
-
+	allocateGPUBuffers(&d_colorMapRaw, &d_colorMapFloat4, &d_colorMapResampledFloat4, &d_depthMapFloat, &d_depthMapResampledFloat);
 	return S_OK;
 }
 

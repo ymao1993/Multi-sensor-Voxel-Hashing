@@ -920,21 +920,18 @@ void reconstruction_multi_dump(){
  */
 void reconstruction()
 {
-	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiSensor)
-	{
+	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiSensor) {
 		reconstruction_multi_dump();
+		return;
 	}
 
 	//only if binary dump or multi-sensor (because currently multi sensor only supports multiple binary readers)
-	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader ||
-		GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiSensor) {
+	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader) {
 		std::cout << "[ frame " << g_RGBDAdapter.getFrameNumber() << " ] " << " [Free SDFBlocks " << g_sceneRep->getHeapFreeCount() << " ] " << std::endl;
-		return reconstruction_multi_dump();
 	}
 
 	mat4f transformation = mat4f::identity();
-	if ((GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader ||
-		GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiSensor)
+	if ((GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader)
 		&& GlobalAppState::get().s_binaryDumpSensorUseTrajectory) {
 
 		// The transformation is set here from the binary file directly. No need to run ICP below.
@@ -954,10 +951,9 @@ void reconstruction()
 
 	if (true) {
 		mat4f renderTransform = g_sceneRep->getLastRigidTransform();
-		
+
 		//if we have a pre-recorded trajectory; use it as an init (if specificed to do so)
-		if ((GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader ||
-			GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiSensor)
+		if ((GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader)
 			&& GlobalAppState::get().s_binaryDumpSensorUseTrajectory
 			&& GlobalAppState::get().s_binaryDumpSensorUseTrajectoryOnlyInit) {
 			//deltaTransformEstimate = lastTransform.getInverse() * transformation;
@@ -983,8 +979,7 @@ void reconstruction()
 				transformation.setIdentity();
 			}
 			else if (
-				(GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader ||
-				 GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiSensor)
+				(GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_BinaryDumpReader || GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_SensorDataReader)
 				&& GlobalAppState::get().s_binaryDumpSensorUseTrajectory
 				&& !GlobalAppState::get().s_binaryDumpSensorUseTrajectoryOnlyInit) {
 				//actually: nothing to do here; transform is already set: just don't do icp and use pre-recorded trajectory
@@ -1002,27 +997,28 @@ void reconstruction()
 						g_rayCast->getRayCastData().d_depth4, g_rayCast->getRayCastData().d_normals, g_rayCast->getRayCastData().d_colors,
 						lastTransform,
 						GlobalCameraTrackingState::getInstance().s_maxInnerIter, GlobalCameraTrackingState::getInstance().s_maxOuterIter,
-						GlobalCameraTrackingState::getInstance().s_distThres,	 GlobalCameraTrackingState::getInstance().s_normalThres,
+						GlobalCameraTrackingState::getInstance().s_distThres, GlobalCameraTrackingState::getInstance().s_normalThres,
 						100.0f, 3.0f,
 						deltaTransformEstimate,
 						GlobalCameraTrackingState::getInstance().s_residualEarlyOut,
-						g_RGBDAdapter.getDepthIntrinsics(), g_CudaDepthSensor.getDepthCameraData(), 
+						g_RGBDAdapter.getDepthIntrinsics(), g_CudaDepthSensor.getDepthCameraData(),
 						NULL);
-				} else {
+				}
+				else {
 					transformation = g_cameraTrackingRGBD->applyCT(
 						//g_rayCast->getRayCastData().d_depth4Transformed, g_CudaDepthSensor.getColorMapFilteredFloat4(),
 						g_CudaDepthSensor.getCameraSpacePositionsFloat4(), g_CudaDepthSensor.getNormalMapFloat4(), g_CudaDepthSensor.getColorMapFilteredFloat4(),
-						g_rayCast->getRayCastData().d_depth4, g_rayCast->getRayCastData().d_normals,  g_rayCast->getRayCastData().d_colors, //g_CudaDepthSensor.getColorMapFilteredLastFrameFloat4(), // g_rayCast->getRayCastData().d_colors,
+						g_rayCast->getRayCastData().d_depth4, g_rayCast->getRayCastData().d_normals, g_rayCast->getRayCastData().d_colors, //g_CudaDepthSensor.getColorMapFilteredLastFrameFloat4(), // g_rayCast->getRayCastData().d_colors,
 						lastTransform,
 						GlobalCameraTrackingState::getInstance().s_maxInnerIter, GlobalCameraTrackingState::getInstance().s_maxOuterIter,
-						GlobalCameraTrackingState::getInstance().s_distThres,	 GlobalCameraTrackingState::getInstance().s_normalThres,
+						GlobalCameraTrackingState::getInstance().s_distThres, GlobalCameraTrackingState::getInstance().s_normalThres,
 						GlobalCameraTrackingState::getInstance().s_colorGradientMin, GlobalCameraTrackingState::getInstance().s_colorThres,
 						100.0f, 3.0f,
 						deltaTransformEstimate,
 						GlobalCameraTrackingState::getInstance().s_weightsDepth,
 						GlobalCameraTrackingState::getInstance().s_weightsColor,
 						GlobalCameraTrackingState::getInstance().s_residualEarlyOut,
-						g_RGBDAdapter.getDepthIntrinsics(), g_CudaDepthSensor.getDepthCameraData(), 
+						g_RGBDAdapter.getDepthIntrinsics(), g_CudaDepthSensor.getDepthCameraData(),
 						NULL);
 				}
 				PROFILE_CODE(profile.stopTiming("ICP Tracking", g_RGBDAdapter.getFrameNumber()));
@@ -1031,10 +1027,12 @@ void reconstruction()
 	}
 #pragma endregion
 
+	std::cout << transformation << std::endl;
+
 	if (GlobalAppState::getInstance().s_recordData) {
 		g_RGBDAdapter.recordTrajectory(transformation);
 	}
-	
+
 	if (transformation(0, 0) == -std::numeric_limits<float>::infinity()) {
 		std::cout << "!!! TRACKING LOST !!!" << std::endl;
 		GlobalAppState::get().s_reconstructionEnabled = false;
@@ -1061,7 +1059,7 @@ void reconstruction()
 	// heap debug
 	static int scount = 0;
 	const int gap = 50;
-	if (scount == gap-1) {
+	if (scount == gap - 1) {
 		g_sceneRep->checkHeapValRange();
 	}
 	scount = (scount + 1) % gap;
@@ -1076,21 +1074,11 @@ void reconstruction()
 		PROFILE_CODE(profile.startTiming("Integration", g_RGBDAdapter.getFrameNumber()));
 		g_sceneRep->integrate(transformation, g_CudaDepthSensor.getDepthCameraData(), g_CudaDepthSensor.getDepthCameraParams(), g_chunkGrid->getBitMaskGPU());
 		PROFILE_CODE(profile.stopTiming("Integration", g_RGBDAdapter.getFrameNumber()));
-	} else {
+	}
+	else {
 		//compactification is required for the raycast splatting
 		g_sceneRep->setLastRigidTransformAndCompactify(transformation, g_CudaDepthSensor.getDepthCameraData());
 	}
-
-	//{
-	//	Util::saveScreenshot(g_rayCast->getRayCastData().d_depth, g_rayCast->getRayCastParams().m_width, g_rayCast->getRayCastParams().m_height, "ray/raycast_" + std::to_string(g_RGBDAdapter.getFrameNumber()) + ".png");
-	//	g_sceneRep->debug("ray/hash_", g_RGBDAdapter.getFrameNumber());
-	//}
-
-	//if (g_RGBDAdapter.getFrameNumber() >= 2800) {
-	//	g_RGBDAdapter.saveRecordedFramesToFile(GlobalAppState::getInstance().s_recordDataFile);
-	//	StopScanningAndExtractIsoSurfaceMC();
-	//	getchar();
-	//}
 }
 
 //--------------------------------------------------------------------------------------
@@ -1102,15 +1090,6 @@ void reconstruction()
  */
 void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext, double fTime, float fElapsedTime, void* pUserContext )
 {
-	//g_historgram->computeHistrogram(g_sceneRep->getHashData(), g_sceneRep->getHashParams());
-
-	// If the settings dialog is being shown, then render it instead of rendering the app's scene
-	//if(g_D3DSettingsDlg.IsActive())
-	//{
-	//	g_D3DSettingsDlg.OnRender(fElapsedTime);
-	//	return;
-	//}
-
 	// Clear the back buffer
 	static float ClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	ID3D11RenderTargetView* pRTV = DXUTGetD3D11RenderTargetView();
@@ -1182,20 +1161,8 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 
 		DX11PhongLighting::render(pd3dImmediateContext, g_CustomRenderTarget.GetSRV(1), g_CustomRenderTarget.GetSRV(2), g_CustomRenderTarget.GetSRV(3), GlobalAppState::get().s_useColorForRendering, g_CustomRenderTarget.getWidth(), g_CustomRenderTarget.getHeight());		
 		DX11QuadDrawer::RenderQuad(pd3dImmediateContext, DX11PhongLighting::GetColorsSRV(), 1.0f);
-#ifdef STRUCTURE_SENSOR
-		if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_StructureSensor) {
-			ID3D11Texture2D* pSurface;
-			HRESULT hr = DXUTGetDXGISwapChain()->GetBuffer( 0, __uuidof( ID3D11Texture2D ), reinterpret_cast< void** >( &pSurface ) );
-			if (pSurface) {
-				float* tex = (float*)CreateAndCopyToDebugTexture2D(pd3dDevice, pd3dImmediateContext, pSurface, true); //!!! TODO just copy no create
-				((StructureSensor*)getRGBDSensor())->updateFeedbackImage((BYTE*)tex);
-				SAFE_DELETE_ARRAY(tex);
-			}
-		}
-#endif
 	}
 	else if(GlobalAppState::get().s_RenderMode == 2) {
-		//DX11QuadDrawer::RenderQuadDynamic(DXUTGetD3D11Device(), pd3dImmediateContext, (float*)g_CudaDepthSensor.getCameraSpacePositionsFloat4(), 4, g_CudaDepthSensor.getColorWidth(), g_CudaDepthSensor.getColorHeight());
 		DX11QuadDrawer::RenderQuadDynamic(DXUTGetD3D11Device(), pd3dImmediateContext, (float*)g_CudaDepthSensor.getAndComputeDepthHSV(), 4, g_CudaDepthSensor.getColorWidth(), g_CudaDepthSensor.getColorHeight());
 	}
 	else if(GlobalAppState::get().s_RenderMode == 3) {
@@ -1205,8 +1172,6 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 		DX11QuadDrawer::RenderQuadDynamic(DXUTGetD3D11Device(), pd3dImmediateContext, (float*)g_CudaDepthSensor.getNormalMapFloat4(), 4, g_CudaDepthSensor.getColorWidth(), g_CudaDepthSensor.getColorHeight());
 	}
 	else if(GlobalAppState::get().s_RenderMode == 5) {
-		//DX11QuadDrawer::RenderQuadDynamic(DXUTGetD3D11Device(), pd3dImmediateContext, (float*)g_rayCast->getRayCastData().d_colors, 4, g_rayCast->getRayCastParams().m_width, g_rayCast->getRayCastParams().m_height);
-
 		//default render mode
 		const mat4f& renderIntrinsics = g_RGBDAdapter.getColorIntrinsics();
 
@@ -1246,13 +1211,6 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 #ifdef OBJECT_SENSING
 	if (bGotDepth == S_OK) ObjectSensing::getInstance()->processFrame(g_sceneRep);
 #endif // OBJECT_SENSING
-
-	//if (g_RGBDAdapter.getFrameNumber() > 630) { // recording 1
-	//	StopScanningAndExtractIsoSurfaceMC();
-	//	getchar();
-	//}
-
-
 	DXUT_EndPerfEvent();
 }
 
