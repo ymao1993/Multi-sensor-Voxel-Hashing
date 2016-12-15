@@ -68,6 +68,10 @@ public:
 		requests_.push_back(request);
 	}
 
+	int num_request() {
+		return requests_.size();
+	}
+
 	/**
 	 * Ideally the schedule can be agnostic of sensor IDs.
 	 * It only sees a bunch of frames to be integrated.
@@ -76,29 +80,16 @@ public:
 #ifdef BINARY_DUMP_READER
 		assert(GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiSensor);
 		assert(GlobalAppState::get().s_binaryDumpSensorUseTrajectory);
-		// vallina implementation below
-		// Welcome to override in derived class
-		size_t num_integrations = std::min(requests_.size(), (size_t)GlobalAppState::get().s_renderFrequency);
-		for (size_t i = 0; i < num_integrations; i++){
+		for (size_t i = 0; i < requests_.size(); i++){
 			execute_frame_request(requests_[i]);
-		} //end for
-		this->render(requests_[num_integrations - 1].depthCameraData, requests_[num_integrations - 1].transformation);
-		std::cout << "Rendering ..." << std::endl;
-		requests_.erase(requests_.begin(), requests_.begin() + num_integrations);
-		g_bProcessSensor = requests_.empty();
+		} 
+		requests_.erase(requests_.begin(), requests_.begin() + requests_.size() - 1);
 #endif
 	}
 
 protected:
 	std::vector<FrameRequest> requests_;
 	size_t num_processed_frames_ = 0;
-
-	void render(const DepthCameraData& depthCameraData, const mat4f& renderTransform){
-		// g_rayCast->render(g_sceneRep->getHashData(), g_sceneRep->getHashParams(), depthCameraData, renderTransform);
-
-		mat4f transformation = mat4f::translation(0, 0, -2);
-		g_rayCast->render(g_sceneRep->getHashData(), g_sceneRep->getHashParams(), depthCameraData, transformation);
-	}
 
 	void execute_frame_request(const FrameRequest& req){
 		std::cout << "Executing: " + req.tag << std::endl;
@@ -212,19 +203,9 @@ public:
 
 				incrementHeat(chunkIdx.x, chunkIdx.y, chunkIdx.z);
 			}
-
 			execute_frame_request(requests_[chosen_frame]);
-
-			if (++count_integrated >= GlobalAppState::get().s_renderFrequency || 1 == requests_.size()){
-				std::cout << "Rendering from sensor " << std::to_string(requests_[chosen_frame].sensor_id) << std::endl;
-				this->render(requests_[chosen_frame].depthCameraData, requests_[chosen_frame].transformation);
-				requests_.erase(requests_.begin() + chosen_frame);
-				break;
-			}
 			requests_.erase(requests_.begin() + chosen_frame);
 		}
-
-		g_bProcessSensor = requests_.empty();
 
 		decayHeat();
 	}
@@ -887,51 +868,44 @@ void reconstruction_multi_dump(){
 
 #ifdef MULTI_SENSOR
 	// schedule
-	if (g_bProcessSensor)
-	{
-		std::cout << "Fetching a new batch ..." << std::endl;
-		vector<FrameEntry> frames = g_CudaDepthSensor.getBufferedFrame();
-		if (g_CudaDepthSensor.getMode() == NoBuffering) {
-			int id = 0;
-			scheduler.add_request(MultiFrameScheduler::FrameRequest(
-				g_CudaDepthSensor.getRigidTransform(),
-				g_CudaDepthSensor.getDepthCameraData(),
-				g_CudaDepthSensor.getDepthCameraParams(),
-				id,
-				std::string("Sensor ") + std::to_string(g_RGBDAdapter.getCurrentSensorIdx()) + std::string(", Frame ") + std::to_string(g_RGBDAdapter.getFrameNumber())));
-		}
-		else if (g_CudaDepthSensor.getMode() == BatchBuffering) {
-			for (int i = 0; i < frames.size(); i++)
-			{
-				scheduler.add_request(MultiFrameScheduler::FrameRequest(
-					frames[i].rigidTransformation,
-					frames[i].depthCameraData,
-					g_CudaDepthSensor.getDepthCameraParams(),
-					frames[i].sensorId,
-					std::string("Sensor ") + std::to_string(frames[i].sensorId) + std::string(", Frame ") + std::to_string(g_RGBDAdapter.getFrameNumber())));
-				// FIXME Can we show real frame # of each sensor here?
-			}
-		}
-	}
-
-	scheduler.schedule_and_execute();
-
-	// render
+	std::cout << "Fetching a new batch ..." << std::endl;
+	vector<FrameEntry> frames = g_CudaDepthSensor.getBufferedFrame();
 	if (g_CudaDepthSensor.getMode() == NoBuffering) {
-		mat4f renderTransform = g_CudaDepthSensor.getRigidTransform();
-		g_rayCast->render(g_sceneRep->getHashData(), g_sceneRep->getHashParams(), g_CudaDepthSensor.getDepthCameraData(), renderTransform);
+		int id = 0;
+		scheduler.add_request(MultiFrameScheduler::FrameRequest(
+			g_CudaDepthSensor.getRigidTransform(),
+			g_CudaDepthSensor.getDepthCameraData(),
+			g_CudaDepthSensor.getDepthCameraParams(),
+			id,
+			std::string("Sensor ") + std::to_string(g_RGBDAdapter.getCurrentSensorIdx()) + std::string(", Frame ") + std::to_string(g_RGBDAdapter.getFrameNumber())));
 	}
 	else if (g_CudaDepthSensor.getMode() == BatchBuffering) {
-		// Do nothing, render done in scheduler
-
-		//size_t render_sensor = 0;
-		//if (g_RGBDAdapter.getFrameNumber() > 1) {
-		//	mat4f renderTransform = frames[render_sensor].rigidTransformation;
-		//	std::cout << "Render sensor " << render_sensor << std::endl;
-		//	g_rayCast->render(g_sceneRep->getHashData(), g_sceneRep->getHashParams(), frames[render_sensor].depthCameraData, renderTransform);
-		//}
+		for (int i = 0; i < frames.size(); i++)
+		{
+			scheduler.add_request(MultiFrameScheduler::FrameRequest(
+				frames[i].rigidTransformation,
+				frames[i].depthCameraData,
+				g_CudaDepthSensor.getDepthCameraParams(),
+				frames[i].sensorId,
+				std::string("Sensor ") + std::to_string(frames[i].sensorId) + std::string(", Frame ") + std::to_string(g_RGBDAdapter.getFrameNumber())));
+		}
 	}
 
+	int numRequest = scheduler.num_request();
+	if (numRequest > 0) {
+		// integrate
+		scheduler.schedule_and_execute();
+		// render
+		if (g_CudaDepthSensor.getMode() == NoBuffering) {
+			g_rayCast->render(g_sceneRep->getHashData(), g_sceneRep->getHashParams(),
+				g_CudaDepthSensor.getDepthCameraData(), g_CudaDepthSensor.getRigidTransform());
+		}
+		else if (g_CudaDepthSensor.getMode() == BatchBuffering) {
+			vector<FrameEntry> frames = g_CudaDepthSensor.getBufferedFrame();
+			g_rayCast->render(g_sceneRep->getHashData(), g_sceneRep->getHashParams(),
+				frames[0].depthCameraData, frames[0].rigidTransformation);
+		}
+	}
 #endif
 }
 
@@ -943,7 +917,6 @@ void reconstruction()
 	if (GlobalAppState::get().s_sensorIdx == GlobalAppState::Sensor_MultiSensor)
 	{
 		return reconstruction_multi_dump();
-
 	}
 
 	//only if binary dump or multi-sensor (because currently multi sensor only supports multiple binary readers)
@@ -1121,15 +1094,12 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	// if we have received any valid new depth data we may need to draw
 	// 15769 Process the whole array of CudaSensor
 	HRESULT bGotDepth = S_OK;
-	if (g_bProcessSensor)
-	{
-		bGotDepth = g_CudaDepthSensor.process(pd3dImmediateContext);
+	bGotDepth = g_CudaDepthSensor.process(pd3dImmediateContext);
 
-		// Filtering
-		g_CudaDepthSensor.setFiterDepthValues(GlobalAppState::get().s_depthFilter, GlobalAppState::get().s_depthSigmaD, GlobalAppState::get().s_depthSigmaR);
-		g_CudaDepthSensor.setFiterIntensityValues(GlobalAppState::get().s_colorFilter, GlobalAppState::get().s_colorSigmaD, GlobalAppState::get().s_colorSigmaR);
+	// Filtering
+	g_CudaDepthSensor.setFiterDepthValues(GlobalAppState::get().s_depthFilter, GlobalAppState::get().s_depthSigmaD, GlobalAppState::get().s_depthSigmaR);
+	g_CudaDepthSensor.setFiterIntensityValues(GlobalAppState::get().s_colorFilter, GlobalAppState::get().s_colorSigmaD, GlobalAppState::get().s_colorSigmaR);
 
-	}
 	HRESULT hr = S_OK;
 
 	///////////////////////////////////////

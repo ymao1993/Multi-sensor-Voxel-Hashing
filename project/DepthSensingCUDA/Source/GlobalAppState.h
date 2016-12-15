@@ -101,7 +101,6 @@
 	X(int, s_batchBufferingSize)\
 	X(bool, s_streamingAdaptive)\
 	X(unsigned int, s_streamingThreshold) \
-	X(unsigned int, s_renderFrequency) \
 	X(bool, s_skipFrameEnabled) \
 	X(float, s_skipFrameThreshold) \
 	X(bool, s_naiveReorder)\

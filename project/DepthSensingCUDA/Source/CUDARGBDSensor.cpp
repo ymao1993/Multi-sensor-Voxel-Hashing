@@ -141,8 +141,8 @@ HRESULT CUDARGBDSensor::OnD3D11CreateDevice(ID3D11Device* device, CUDARGBDAdapte
 	m_depthCameraParams.m_imageHeight = m_RGBDAdapter->getHeight();
 	m_depthCameraParams.m_imageWidth = m_RGBDAdapter->getWidth();
 
-
-	if (GlobalAppState().get().s_enableBatchBuffering) {
+	// only enable batch buffering if it is multi-sensor 
+	if (GlobalAppState().get().s_sensorIdx == GlobalAppState::Sensor_MultiSensor && GlobalAppState().get().s_enableBatchBuffering) {
 		mode = BatchBuffering;
 		bufferedFrames.resize(GlobalAppState().get().s_batchBufferingSize);
 		for (int i = 0; i < bufferedFrames.size(); i++) {

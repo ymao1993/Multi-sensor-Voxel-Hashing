@@ -37,7 +37,10 @@ void CUDARayCastSDF::destroy(void)
 
 void CUDARayCastSDF::render(const VoxelHashData& voxelHashData, const HashParams& hashParams, const DepthCameraData& cameraData, const mat4f& lastRigidTransform)
 {
-	rayIntervalSplatting(voxelHashData, hashParams, cameraData, lastRigidTransform);
+	// fix camera position
+	rayIntervalSplatting(voxelHashData, hashParams, cameraData, mat4f::translation(0, 0, -2));
+	//rayIntervalSplatting(voxelHashData, hashParams, cameraData, lastRigidTransform);
+
 	m_data.d_rayIntervalSplatMinArray = m_rayIntervalSplatting.mapMinToCuda();
 	m_data.d_rayIntervalSplatMaxArray = m_rayIntervalSplatting.mapMaxToCuda();
 
