@@ -79,6 +79,10 @@ public:
 		return sensors[curSensorIdx];
 	}
 
+	RGBDSensor* getSensor(size_t id) {
+		return sensors[id];
+	}
+
 	int getSensorNum() {
 		return (int)sensors.size();
 	}

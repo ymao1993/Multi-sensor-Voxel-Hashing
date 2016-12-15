@@ -1,10 +1,13 @@
 // 0=Kinect; 1=PrimeSense; 2=KinectOne; 3=BinaryDumpReader; 4=NetworkSensor; 5=IntelSensor; 6=RealSense; 7=StructureSensor; 8=SensorDataReader; 9 = MultiSensor
 s_sensorIdx = 9;
 
+// optimization
+s_enableBatchBuffering = true;
+s_batchBufferingSize = 2;
 s_skipFrameEnabled = true;	// Enable to allow skipping frames
-s_skipFrameThreshold = 100;
+s_skipFrameThreshold = 50.0f;
 
-s_renderFrequency = 3; // Render frequency: how many frame integrations between two render?
+s_renderFrequency = 1; // Render frequency: how many frame integrations between two render?
 
 //s_windowWidth = 1280;		//render window width
 //s_windowHeight = 960;		//render window height
@@ -130,9 +133,6 @@ s_recordCompression = false;		//if recoding is enabled; then compression is used
 	s_recordDataFile = "./Dump/test.sensor";
 s_reconstructionEnabled = true;		//if recording is enabled; then the rigid transformation of the camera in each frame is also recorded.
 
-// optimization
-s_enableBatchBuffering = true;
-s_batchBufferingSize = 6;
 
 // profiler
 s_profilerDumpFolder = "./profiling_dump";   //dump folder output

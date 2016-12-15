@@ -177,7 +177,6 @@ public:
 				vec4f posWorld = transformation*GlobalAppState::getInstance().s_streamingPos; // trans laggs one frame *trans
 				vec3f p(posWorld.x, posWorld.y, posWorld.z);
 				vec3i chunkIdx = g_chunkGrid->worldToChunks(p);
-				incrementHeat(chunkIdx.x, chunkIdx.y, chunkIdx.z);
 
 				if (getHeat(chunkIdx.x, chunkIdx.y, chunkIdx.z) > GlobalAppState::get().s_skipFrameThreshold){
 					// hot enough, skip!
@@ -186,6 +185,7 @@ public:
 					continue;
 				}
 
+				incrementHeat(chunkIdx.x, chunkIdx.y, chunkIdx.z);
 			}
 
 			execute_frame_request(requests_[closest_idx]);
@@ -199,6 +199,8 @@ public:
 			requests_.erase(requests_.begin() + closest_idx);
 		}
 		g_bProcessSensor = requests_.empty();
+
+		decayHeat();
 	}
 
 private:
@@ -209,18 +211,18 @@ private:
 			return std::hash<int>{}(x) ^ std::hash<int>{}(y) ^ std::hash<int>{}(z);
 		}
 	};
-	std::unordered_map<std::tuple<int, int, int>, size_t, key_hash> heat_map_;
+	std::unordered_map<std::tuple<int, int, int>, float, key_hash> heat_map_;
 	void incrementHeat(int x, int y, int z){
 		auto key = std::make_tuple(x, y, z);
 		if (heat_map_.end() == heat_map_.find(key)){
-			heat_map_[key] = 1;
+			heat_map_[key] = 1.0f;
 		}
 		else{
-			heat_map_[key]++;
+			heat_map_[key] += 1.0f;
 		}
 	}
 
-	size_t getHeat(int x, int y, int z){
+	float getHeat(int x, int y, int z){
 		auto key = std::make_tuple(x, y, z);
 		if (heat_map_.end() == heat_map_.find(key)){
 			return 0;
@@ -231,7 +233,9 @@ private:
 	}
 
 	void decayHeat(){
-		// TODO ....
+		for (auto iter : heat_map_){
+			iter.second = (size_t)(0.9f * iter.second);
+		}
 	}
 };
 
