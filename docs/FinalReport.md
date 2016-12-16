@@ -2,25 +2,33 @@
 
 ## Background
 
-Voxel Hashing [1] is a system for scalable real-time 3D reconstruction. It is based on Truncated Signed Distance Function (TSDF) and Voxels. It achieves scalability of sensor motion with a sparse representation of the world, i.e., Voxel hash table, and bidirectional streaming of voxel data between GPU and CPU.
+Voxel Hashing [1] is a system for scalable real-time 3D reconstruction. It is based on Truncated Signed Distance Function (TSDF). It achieves scalability of sensor motion with a sparse representation of the world, i.e., Voxel hash table, and bidirectional streaming of voxel data between GPU and CPU.
 
 
 ## Problem Statement
 
 Though efficient, the Voxel Hashing system [1] is built around a single sensor. In this project, we extended the system to support real-time 3D reconstruction with multiple sensors contributing to the same model. Specifically, we make the following contributions:
 
-1. We demonstrate how a single-sensor system, exemplified by Voxel Hashing, can be adapted to support 3D reconstruction from multiple sensors.
+1. We demonstrated how a single-sensor system, exemplified by Voxel Hashing, can be adapted to support 3D reconstruction from multiple sensors.
 
-2. We identify the critical performance issues that arise in the presence of multiple sensors.
+2. We identified the critical performance issues that arise in the presence of multiple sensors.
 
-3. We propose several techniques to tackle those issues to allow for scalability of multiple sensors.
+3. We proposed several techniques to tackle those issues to allow for scalability of multiple sensors, some of which can be directly applied to the original system and are necessarily restricted to multi-sensor scenario.
 
 
 ## System Architecture
 
+![SystemArchitecture](system_architecture.png)
 
+In our experiment, we set up several Kinect binary dump readers as our virtual sensors, followed by a multi-sensor simulator which randomly fetch frames from available sensors to simulate what will happen in the real world situtaion.
+
+Because frames coming from different sensors with different size, in the next pipeline stage these frames are resized via re-sampling and are copied into a GPU buffer for further processing. The schedular, given the buffered frames, will make intelligent decisions on the integration strategies including reordering, skipping, etc.
+
+When the integration request is received by the voxel hashing system. We will first perform Host-device voxel streaming. This is because as we are integrating new frames into the model, the size of the voxel blocks will grow too large to fit on GPU.  Active region is deﬁned as a sphere containing the current camera view frustum and a safety region around it. And at each frame the system streams the voxels falling outside the active region to CPU and chunks falling inside the active region to GPU to maintain a minimum working set on GPU. After this step, the voxel hashing system allocates the voxel blocks falling inside the footprint of the depth map being integrated, and perform integration.
 
 ## Optimizations
+
+
 
 ### Baseline
 
