@@ -84,8 +84,6 @@ Above: Reconstruction **with** frame skipping
 
 ## Results
 
-
-
 ### Demo
 
 https://vimeo.com/195757597
@@ -111,7 +109,6 @@ As can be seen from the rightmost column, each of the three major optimizations,
 
 
 We find that buffering alone has significantly improved cache locality. So further reordering frames within a batch merely yields marginal gains. Adaptive streaming reduces the streaming time to ~1/3 (1711 -> 480) by saving a lot of unnecessary streaming, with a slight increase of integration time (1423 -> 1460). Frame skipping brings about the last 22% reduction by skipping the work to integrate some frame entirely.
-
 
 
 Reference:
