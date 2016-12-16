@@ -28,8 +28,6 @@ When the integration request is received by the voxel hashing system. We will fi
 
 ## Optimizations
 
-
-
 ### Baseline
 
 Our baseline solution is to poll all registered sensors in round robin and fetch one frame at a time. The frame is integrated into the voxel model immediately after fetching. This is the most straightforward solution when one wants to integrate all input sensors to a single 3D model at real-time.
@@ -63,12 +61,17 @@ However, we observe that blind streaming as in the original system can become a 
 
 During reconstruction with multiple sensors, the occupancy of the hash table can vary drastically. The occupancy may be low when several sensors are pointing at roughly the same object. However, occupancy can become *N*x higher if all those sensors are focusing on different scenes.
 
-
-
 ### Heatmap Based Skipping
 
+Our system is expected to have certain level of elasticity so that when the system is overloaded, we can acclerate processing the buffered frames potentially with some sacrifice on the accuracy of the reconstructed 3D model.
+
+We implemented a feature called heatmap-based skipping. When it is turned on, the system will be maintaining a grid of heatmap on CPU recording the number of times each chunk has been integrated. And the schedular will skip the integration request on the chunks being integrated many times.
+
+We tested this feature and found that with modest skipping configuration, it has almost no negative effects on the integration result, and significantly reduced the workload of integration as well as streaming.
 
 ## Results
+
+
 
 ### Demo
 
