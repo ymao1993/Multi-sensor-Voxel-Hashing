@@ -55,19 +55,30 @@ Note that it is not scalable to integrate one frame at a time as the number of s
 
 ### Adaptive Streaming
 
-In Voxel Hashing, streaming means to migrate voxel data back and forth between GPU and CPU. It is necessary to achieve scalability and avoid overflowing the hash table that needs to fit in GPU.
+In Voxel Hashing, streaming means to migrate voxel data back and forth between GPU and CPU. Streaming is necessary to achieve scalability of the 3D model size and avoid overflowing the hash table that needs to fit in GPU.
 
-However, we observe that blind streaming as in the original system can become a bottleneck and hurt performance. We improve it with *adaptive* streaming. That is, we dynamically disable streaming when the hash table occupancy is low and enable it when the occupancy is high.
+However, we observe that *blind* streaming as in the original system can become a bottleneck and hurt performance. Specifically, when the hash table occupancy is low, the performance gain in hash operations (e.g., shorter bucket linked list) does not compensate the overhead of carrying out streaming.
 
-During reconstruction with multiple sensors, the occupancy of the hash table can vary drastically. The occupancy may be low when several sensors are pointing at roughly the same object. However, occupancy can become *N*x higher if all those sensors are focusing on different scenes.
+ We improve it with *adaptive* streaming. That is, we dynamically disable streaming when the hash table occupancy is low and enable it when the occupancy is high.
 
-### Heatmap Based Skipping
+During reconstruction with multiple sensors, the occupancy of the hash table can vary drastically. The occupancy may be low when several sensors are pointing a the same object. However, occupancy can become *N*x higher if all those sensors are focusing on different scenes. Adaptive streaming strikes a balance between avoiding overflowing the hash table and reducing streaming overhead.
 
-Our system is expected to have certain level of elasticity so that when the system is overloaded, we can acclerate processing the buffered frames potentially with some sacrifice on the accuracy of the reconstructed 3D model.
 
-We implemented a feature called heatmap-based skipping. When it is turned on, the system will be maintaining a grid of heatmap on CPU recording the number of times each chunk has been integrated. And the schedular will skip the integration request on the chunks being integrated many times.
 
-We tested this feature and found that with modest skipping configuration, it has almost no negative effects on the integration result, and significantly reduced the workload of integration as well as streaming.
+### Heatmap Based Frame Skipping
+
+Lastly, we tackle the situation where the number of input sensors is really large or the compute resource is extremely tight. Our system is expected to have certain level of elasticity so that when the system is overloaded, we can acclerate processing the buffered frames potentially with some sacrifice on the accuracy of the reconstructed 3D model.
+
+Skipping frames brings about chances of losing quality. To minimize quality loss, we develop a heatmap based frame skipping algorithm. Intuitively, we skip a frame when the region in its frustum has been updated frequently and recently, meaning the reconstructed model in that region is "good enough". Skipping is usually triggered when a sensor has stayed still for a short while, or goes back to a previously visited scene, or moves to a scene that has been scanned by another sensor.
+
+We maintain a 3D heatmap on host CPU. It divides the world into uniform 3D chunks, each with a heat value. When a frame is scheduled for integration, it increases the heat values in its chunks. Heat value decays over time naturally. When frame skipping is enabled, we dynamically check each frame's heat value and skip integrating it if its heat value is higher than a threshold. We tested this feature and found that with modest skipping configuration, it has almost no negative effects on the integration result, and significantly reduced the workload of integration as well as streaming.
+
+
+Above: Reconstruction **without** frame skipping
+
+
+Above: Reconstruction **with** frame skipping
+
 
 ## Results
 
@@ -75,7 +86,29 @@ We tested this feature and found that with modest skipping configuration, it has
 
 ### Demo
 
+https://vimeo.com/195757597
+
+
 ### Experiments
+
+Below is the experiment result of running a test with ~300 input frames.
+
+The *baseline* is to poll each connected sensor round robin and integrate one frame at a time.
+As can be seen from the rightmost column, each of the three major optimizations, aka *buffering*, *adaptive streaming* and *frame skipping* brings about ~25% reduction of time, resulting in 75% reduction in total (**4x speedup**).
+
+
+
+| Optimization | Integration (ms) | Streaming (ms) | Total (ms) | Reduce baseline by (%) |
+|:-------------|:----------------:|:--------------:|:----------:|:----------------------:|
+| Baseline (1 frame RR) | 1784 | 2348 | 4132 | 0% |
+| Buffering (30 frames) | 1423 | 1711 | 3134 | 24.15% |
+| &nbsp;&nbsp;  + Order by sensor   | 1443 | 1501 | 2944 | 28.75% |
+| &nbsp;&nbsp;  + Closest camera pos | 1439 | 1817 | 3256 | 21.20% |
+| + Adaptive streaming | 1460 | 480 | 1940 | 53.05% |
+| + Frame skipping | 865 | 168 | 1033 | **75.00%** |
+
+
+We find that buffering alone has significantly improved cache locality. So further reordering frames within a batch merely yields marginal gains. Adaptive streaming reduces the streaming time to ~1/3 (1711 -> 480) by saving a lot of unnecessary streaming, with a slight increase of integration time (1423 -> 1460). Frame skipping brings about the last 22% reduction by skipping the work to integrate some frame entirely.
 
 
 
