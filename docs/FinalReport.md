@@ -74,9 +74,11 @@ Skipping frames brings about chances of losing quality. To minimize quality loss
 We maintain a 3D heatmap on host CPU. It divides the world into uniform 3D chunks, each with a heat value. When a frame is scheduled for integration, it increases the heat values in its chunks. Heat value decays over time naturally. When frame skipping is enabled, we dynamically check each frame's heat value and skip integrating it if its heat value is higher than a threshold. We tested this feature and found that with modest skipping configuration, it has almost no negative effects on the integration result, and significantly reduced the workload of integration as well as streaming.
 
 ![noSkipping](noSkipping.PNG)
+
 Above: Reconstruction **without** frame skipping
 
 ![Skipping](Skipping.PNG)
+
 Above: Reconstruction **with** frame skipping
 
 
