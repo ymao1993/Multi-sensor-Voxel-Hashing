@@ -1,5 +1,7 @@
 # Multi-Sensor Voxel Hashing
 
+*Yu Mao*  and *Ziqiang Feng*
+
 ## Background
 
 Voxel Hashing [1] is a system for scalable real-time 3D reconstruction. It is based on Truncated Signed Distance Function (TSDF). It achieves scalability of sensor motion with a sparse representation of the world, i.e., Voxel hash table, and bidirectional streaming of voxel data between GPU and CPU.
@@ -111,6 +113,8 @@ As can be seen from the rightmost column, each of the three major optimizations,
 We find that buffering alone has significantly improved cache locality. So further reordering frames within a batch merely yields marginal gains. Adaptive streaming reduces the streaming time to ~1/3 (1711 -> 480) by saving a lot of unnecessary streaming, with a slight increase of integration time (1423 -> 1460). Frame skipping brings about the last 22% reduction by skipping the work to integrate some frame entirely.
 
 ## A few things to note
+
++ Most prior works of online 3D reconstruction have focused on single-sensor use cases. While in this project we managed to adapt Voxel Hashing to support multiple sensors, we feel a better design can be in place if the system is designed from scratch with multiple sensors in mind. For example, per-sensor pose estimation can be perfectly parallelized over several GPUs if they exist.
 
 + The size of batching is a trade-off between the space of optimization and user experience. Because if you are using larger batching size, you end up getting longer stall between batches of frames. However, batching do provides us the opportunity for smart scheduling.
 
