@@ -110,7 +110,13 @@ As can be seen from the rightmost column, each of the three major optimizations,
 
 We find that buffering alone has significantly improved cache locality. So further reordering frames within a batch merely yields marginal gains. Adaptive streaming reduces the streaming time to ~1/3 (1711 -> 480) by saving a lot of unnecessary streaming, with a slight increase of integration time (1423 -> 1460). Frame skipping brings about the last 22% reduction by skipping the work to integrate some frame entirely.
 
+## A few things to note
 
-Reference:
++ The size of batching is a trade-off between the space of optimization and user experience. Because if you are using larger batching size, you end up getting longer stall between batches of frames. However, batching do provides us the opportunity for smart scheduling.
+
++ Although we are targeting at extending the system to support integration from mutiple streams, we end up doing many more general optimizations such as adaptive streaming and heatmap-based skipping. One reason is that in the scenario of multiple streams, the demand arises and we need to figure out ways to squeeze every drop of performance.
+
+## Reference:
 
 [[1] Nießner, M., Zollhöfer, M., Izadi, S., & Stamminger, M. (2013). Real-time 3D reconstruction at scale using voxel hashing. ACM Transactions on Graphics (TOG), 32(6), 169.](http://www.graphics.stanford.edu/~niessner/niessner2013hashing.html)
+
